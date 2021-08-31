@@ -137,10 +137,6 @@
       src: ldap.conf.j2
       dest: "{{ openldap_server_app_path }}/ldap.conf"
 
-  - name: Debug ansible_os_family
-    debug:
-      var: ansible_os_family
-
   - name: Copy slapd.d initial file to system if not present
     template:
       src: config.ldif.j2
