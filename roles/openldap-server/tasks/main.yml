@@ -132,10 +132,6 @@
       owner: "{{ openldap_server_user }}"
       group: "{{ openldap_server_user }}"
 
-  - name: pause
-    pause:
-      minuites: 60
-
   - name: Copy the ldap.conf configuration file
     template:
       src: ldap.conf.j2
@@ -192,6 +188,10 @@
 
   become: yes
   when: installation_mode == "new"
+
+- name: pause
+  pause:
+    minutes: 60
 
 - name: Upgrade openldap
   import_tasks: upgrade-openldap.yml
