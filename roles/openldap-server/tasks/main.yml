@@ -132,6 +132,10 @@
       owner: "{{ openldap_server_user }}"
       group: "{{ openldap_server_user }}"
 
+  - name: pause
+    pause:
+      minuites: 60
+
   - name: Copy the ldap.conf configuration file
     template:
       src: ldap.conf.j2

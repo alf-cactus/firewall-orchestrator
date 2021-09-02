@@ -1,0 +1,8 @@
+save as modify.ldif
+
+dn: cn=config
+changetype: modify
+replace: olcLogLevel
+olcLogLevel: none
+
+use: ldapmodify -Y EXTERNAL -H ldapi:/// -f modify.ldif
