@@ -1,0 +1,329 @@
+@using FWO.Api.Client
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Config.Api
+@using FWO.Ui.Services
+@using FWO.Ui.Data
+@using FWO.Ui.Pages.NetworkModelling
+
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+
+
+<PopUp Title="@(userConfig.GetText("request") + ": " + WfHandler.ActTicket.Title)" Show="@WfHandler.DisplayTicketMode" Size=PopupSize.XLarge OnClose="async () => await Close()">
+    <Body>
+        @if (WfHandler.DisplayTicketMode)
+        {
+            <form>
+                <div class="form-group row">
+                    <div class="col-sm-2">
+                        <div class="form-group row">
+                            <label for="ticketId" class="col-sm-6 col-form-label col-form-label-sm">@(userConfig.GetText("id")):</label>
+                            <div class="col-sm-6">
+                                <label class="col-sm-12 border bg-secondary">@WfHandler.ActTicket.Id</label>
+                            </div>
+                        </div>
+                    </div>
+                    <label for="ticketTitle" class="col-sm-1 col-form-label col-form-label-sm">@(userConfig.GetText("title"))*:</label>
+                    <div class="col-sm-9">
+                        <input id="ticketTitle" type="text" class="form-control form-control-sm" readonly="@(!WfHandler.EditTicketMode)" @bind="WfHandler.ActTicket.Title" />
+                    </div>
+                </div>
+                <div class="form-group row mt-2">
+                    <div class="col-sm-3">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label col-form-label-sm">@(userConfig.GetText("state")):</label>
+                            <div class="col-sm-8">
+                                <label class="col-sm-12 border bg-secondary">@States.Name[WfHandler.ActTicket.StateId]</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label col-form-label-sm">@(userConfig.GetText("requester")):</label>
+                            <div class="col-sm-8">
+                                <label class="col-sm-12 border bg-secondary">@WfHandler.ActTicket.Requester?.Name</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label col-form-label-sm">@(userConfig.GetText("priority")):</label>
+                            <div class="col-sm-8">
+                                @if (WfHandler.EditTicketMode)
+                                {
+                                    <Dropdown ElementType="WfPriority" ElementToString="@(p => p.Name)" @bind-SelectedElement="selectedPriority" Elements="WfHandler.PrioList" Nullable="true">
+                                        <ElementTemplate Context="prio">
+                                            @prio.Name
+                                        </ElementTemplate>
+                                    </Dropdown>
+                                }
+                                else
+                                {
+                                    <label class="col-sm-12 border bg-secondary">@(selectedPriority != null ? selectedPriority.Name : "-")</label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label col-form-label-sm">@(userConfig.GetText("deadline")):</label>
+                            <div class="col-sm-8">
+                                @if (WfHandler.EditTicketMode)
+                                {
+                                    <input type="date" class="col-sm-12 form-control form-control-sm" @bind="WfHandler.ActTicket.Deadline" />
+                                }
+                                else
+                                {
+                                    <label class="col-sm-12 border bg-secondary">@(WfHandler.ActTicket.Deadline != null ? ((DateTime)WfHandler.ActTicket.Deadline).ToShortDateString() : "-")</label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row mt-2">
+                    <label class="col-sm-1 col-form-label col-form-label-sm">@(userConfig.GetText("reason")):</label>
+                    <div class="col-sm-11">
+                        <textarea rows="3" type="text" class="form-control form-control-sm" readonly="@(!WfHandler.EditTicketMode)" @bind="WfHandler.ActTicket.Reason"/>   
+                    </div>
+                </div>
+                <div class="col-sm-12 mt-2">
+                    <div class="btn-group">
+                        @foreach(var action in offeredActions)
+                        {
+                            @if(!WfHandler.ReadOnlyMode || WfStateAction.IsReadonlyType(action.ActionType))
+                            {
+                                <button type="button" class="btn btn-sm btn-dark ml-13" @onclick:preventDefault @onclick="() => PerformAction(action)">@action.ButtonText</button>
+                            }
+                        }
+                    </div>
+                </div>
+                <br>
+
+                @if(Phase < WorkflowPhases.implementation)
+                {
+                    <h5>@(userConfig.GetText("tasks"))</h5>
+
+                    <DisplayReqTaskTable Phase="Phase" States="States" 
+                        WfHandler="WfHandler" ResetParent="Reset" StartPhase="StartPhase"/>
+                }
+                else
+                {
+                    <h5>@(userConfig.GetText("implementation_tasks"))</h5>
+
+                    <DisplayImplTaskTable Phase="Phase" States="States" WfHandler="WfHandler" ResetParent="Reset" 
+                        AllImplTasks="WfHandler.AllTicketImplTasks" StartImplPhase="StartImplPhase"/>
+                }
+            </form>
+        }
+    </Body>
+    <Footer>
+        <div class="btn-group">
+            @if(WfHandler.EditTicketMode)
+            {
+                <AuthorizeView Roles="@($"{Roles.Admin}, {Roles.Requester}, {Roles.FwAdmin}")">
+                    <Authorized>
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="InitSaveTicket">@(userConfig.GetText("save"))</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <button type="button" class="btn btn-sm btn-primary" disabled>@(userConfig.GetText("save"))</button>
+                    </NotAuthorized> 
+                </AuthorizeView>
+            }
+            else if (CheckPromoteTicket())
+            {
+                <AuthorizeView Roles="@($"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.FwAdmin}")">
+                    <Authorized>
+                        <button type="button" class="btn btn-sm btn-primary" @onclick:preventDefault @onclick="InitPromoteTicket">@(userConfig.GetText("change_state"))</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <button type="button" class="btn btn-sm btn-primary" disabled>@(userConfig.GetText("change_state"))</button>
+                    </NotAuthorized> 
+                </AuthorizeView>
+            }
+            @if(WfHandler.EditTicketMode || CheckPromoteTicket())
+            {
+                <button type="button" class="btn btn-sm btn-secondary" @onclick:preventDefault @onclick="CancelEdit">@(userConfig.GetText("cancel"))</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-primary" @onclick:preventDefault @onclick="Close">@(userConfig.GetText("ok"))</button>
+            }
+        </div>
+    </Footer>
+</PopUp>
+
+<PopUp Title="@(userConfig.GetText("confirm_cancel"))" Show="@ConfirmCancelMode" Size=PopupSize.Small OnClose="() => ConfirmCancelMode = false">
+    <Body>
+        @if (ConfirmCancelMode)
+        {
+            <p>@(userConfig.GetText("U8003"))</p>
+        }
+    </Body>
+    <Footer>
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-danger" @onclick="ConfirmCancel">@(userConfig.GetText("ok"))</button>
+            <button type="button" class="btn btn-sm btn-secondary" @onclick="() => ConfirmCancelMode = false">@(userConfig.GetText("back_to_ticket"))</button>
+        </div>
+    </Footer>
+</PopUp>
+
+<PromoteObject @bind-Promote="WfHandler.DisplaySaveTicketMode" CloseParent="Close" CancelParent="Cancel" ObjectName="@WfHandler.ActTicket.Title" Save="WfHandler.SaveTicket" StatefulObject="WfHandler.ActTicket" StateMatrix="WfHandler.MasterStateMatrix" States="States"/>
+<PromoteObject @bind-Promote="WfHandler.DisplayPromoteTicketMode" CloseParent="Close" CancelParent="Cancel" ObjectName="@WfHandler.ActTicket.Title" Save="WfHandler.PromoteTicket" StatefulObject="WfHandler.ActTicket" StateMatrix="WfHandler.MasterStateMatrix" States="States"/>
+
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [Parameter]
+    public WorkflowPhases Phase { get; set; } = WorkflowPhases.approval;
+
+    [Parameter]
+    public WfStateDict States { get; set; } = new ();
+
+    [Parameter]
+    public WfHandler WfHandler { get; set; } = new ();
+    
+    [Parameter]
+    public Func<Task> ResetParent { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public Func<WfReqTask, Task> StartPhase { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public Func<WfImplTask, Task> StartImplPhase { get; set; } = DefaultInit.DoNothing;
+
+
+    private List<int> possibleStates = new ();
+    private List<WfStateAction> offeredActions = new ();
+    private bool ConfirmCancelMode = false;
+    private WfPriority? selectedPriority;
+    private bool firstParamSet = true;
+    
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if(firstParamSet && WfHandler.DisplayTicketMode)
+        {
+            firstParamSet = false;
+            await Reset();
+        }
+    }
+
+    private async Task Close()
+    {
+        await ResetParent();
+    }
+
+    private async Task Cancel()
+    {
+        WfHandler.DisplaySaveTicketMode = false;
+        WfHandler.DisplayPromoteTicketMode = false;
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            Log.WriteDebug("DisplayTicket", "Reset");
+            offeredActions = WfHandler.ActionHandler.GetOfferedActions(WfHandler.ActTicket, WfObjectScopes.Ticket, WfHandler.Phase);
+            selectedPriority = WfHandler.PrioList.FirstOrDefault(p => p.NumPrio == WfHandler.ActTicket.Priority);
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("init_environment"), "", true);
+        }
+    }
+
+    private async Task CancelEdit()
+    {
+        if(WfHandler.EditTicketMode && WfHandler.ActTicket.Id == 0 && WfHandler.ActTicket.Tasks.Count > 0)
+        {
+            ConfirmCancelMode = true;
+        }
+        else
+        {
+            await Close();
+        }
+    }
+
+    private async Task ConfirmCancel()
+    {
+        ConfirmCancelMode = false;
+        await Close();
+    }
+
+    private async Task PerformAction(WfStateAction action)
+    {
+        await WfHandler.ActionHandler.PerformAction(action, WfHandler.ActTicket, WfObjectScopes.Ticket, null, WfHandler.ActTicket.Id);
+        await ResetParent();
+    }
+
+    private bool CheckPromoteTicket()
+    {
+        if (WfHandler.ActTicket.StateId < WfHandler.MasterStateMatrix.LowestStartedState || WfHandler.ActTicket.StateId >= WfHandler.MasterStateMatrix.LowestEndState)
+        {
+            return false;
+        }
+        if(WfHandler.ActTicket.Tasks.Count > 0)
+        {
+            List<int> taskStates = new ();
+            foreach (WfReqTask reqTask in WfHandler.ActTicket.Tasks)
+            {
+                taskStates.Add(reqTask.StateId);
+            }
+            int newState = WfHandler.MasterStateMatrix.getDerivedStateFromSubStates(taskStates);
+            if(newState == WfHandler.ActTicket.StateId)
+            {
+                return false;
+            }
+            return true;
+        }
+        else
+        {
+            possibleStates = WfHandler.MasterStateMatrix.getAllowedTransitions(WfHandler.ActTicket.StateId);
+            if(possibleStates.Count == 1 && possibleStates[0] == WfHandler.ActTicket.StateId)
+            {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    private void InitPromoteTicket()
+    {
+        WfHandler.SetTicketPopUpOpt(ObjAction.displayPromote);
+    }
+
+    private async Task InitSaveTicket()
+    {
+        if (CheckTicketValues())
+        {
+            WfHandler.ActTicket.Priority = selectedPriority?.NumPrio ?? null;
+            if(WfHandler.ActTicket.Tasks.Count == 0)
+            {
+                await WfHandler.SaveTicket(WfHandler.ActTicket);
+                await Close();
+            }
+            else
+            {
+                WfHandler.SetTicketPopUpOpt(ObjAction.displaySaveTicket);
+            }
+        }
+    }
+
+    private bool CheckTicketValues()
+    {
+        if (WfHandler.ActTicket.Title == null || WfHandler.ActTicket.Title == "")
+        {
+            DisplayMessageInUi(null, userConfig.GetText("save_request"), userConfig.GetText("E5102"), true);
+            return false;
+        }
+        return true;
+    }
+}

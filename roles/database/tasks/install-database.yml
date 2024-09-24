@@ -1,12 +1,3 @@
-- name: make sure {{ fworch_home }}/etc/secrets exists
-  file:
-    path: "{{ fworch_home }}/etc/secrets"
-    state: directory
-    owner: "{{ fworch_user }}"
-    group: "{{ fworch_group }}"
-    mode: "0700"
-  become: yes
-
 - name: set dbadmin password from parameter
   set_fact:
     dbadmin_password: "{{ dbadmin_initial_password }}"
@@ -14,53 +5,60 @@
 
 - name: set dbadmin password randomly
   set_fact:
-    dbadmin_password: "{{ random_generated_pw }}"
+    dbadmin_password: "{{ randomly_generated_pwd }}"
   when: dbadmin_initial_password is not defined
 
 - name: write dbadmin_password password to secret directory
   copy:
-    content: "{{ dbadmin_password }}"
+    content: "{{ dbadmin_password }}\n"
     dest: "{{ dbadmin_password_file }}"
     mode: '0600'
     owner: "{{ fworch_user }}"
     group: "{{ fworch_group }}"
-  become: yes
+  become: true
 
 - name: set fworch db password randomly
   set_fact:
-    fworch_db_password: "{{ random_generated_pw }}"
+    fworch_db_password: "{{ randomly_generated_pwd }}"
 
 - name: write fworch_db_password to secrets directory
   copy:
-    content: "{{ fworch_db_password }}"
+    content: "{{ fworch_db_password }}\n"
     dest: "{{ fworch_db_password_file }}"
     mode: '0600'
     owner: "{{ fworch_user }}"
     group: "{{ fworch_group }}"
-  become: yes
+  become: true
 
 - block:
 
   - name: fail upon new installation with existing database
     fail:
-      msg: "Error: You choose new installation on a system with existing database {{ fworch_db_name }}"
+      msg: "Error: You chose new installation on a system with existing database {{ fworch_db_name }}"
     when: installation_mode == "new" and db_exists.query_result.0.count != 0
 
   - name: create postgres user "{{ fworch_dbadmin_name }}"
     postgresql_user: 
       name: "{{ fworch_dbadmin_name }}"
       password: "{{ dbadmin_password }}"
-      encrypted: yes
+      encrypted: true
       role_attr_flags: CREATEDB,SUPERUSER,CREATEROLE,INHERIT,LOGIN
 
   - name: create postgres user "{{ fworch_user }}"
     postgresql_user: 
       name: "{{ fworch_user }}"
       password: "{{ fworch_db_password }}"
-      encrypted: yes
+      encrypted: true
       role_attr_flags: LOGIN
 
   # include add-tablespace.yml here
+
+  - name: make sure sorting order of psql client and postgresql server match for databases to be created
+    postgresql_query:
+      login_user: postgres
+      db: postgres
+      query: "ALTER DATABASE template1 REFRESH COLLATION VERSION"
+    when: pg_version|int >= 15
 
   - name: create database {{ fworch_db_name }}
     postgresql_db:
@@ -72,36 +70,28 @@
       db: "{{ fworch_db_name }}"
       query: 'select version()'
     register: test_query
-    when: ansible_version.string is version_compare('2.8', '>=')
+    when: ansible_version.full is version ('2.8', '>=')
 
   - name: show dummy query result
     debug:
       msg: "test_query result: {{ test_query }}"
 
   - name: creating {{ fworch_db_name }}-db-model
-    postgresql_query:
+    community.postgresql.postgresql_script:
       db: "{{ fworch_db_name }}"
-      path_to_script: "{{ database_install_dir }}/sql/creation/{{ item }}"
-      as_single_query: "{{ postgresql_query_as_single_query }}"
+      path: "{{ database_install_dir }}/sql/creation/{{ item }}"
     loop:
       - fworch-create-tables.sql
       - fworch-create-constraints.sql
       - fworch-create-foreign-keys.sql
       - fworch-create-indices.sql
-    when: installation_mode == "new" and ansible_version.string is version_compare('2.10', '>=')
+      - fworch-create-triggers.sql
+      - fworch-fill-stm.sql
+    when: installation_mode == "new"
+    become: true
+    become_user: postgres
 
-  - name: creating {{ fworch_db_name }}-db-model
-    postgresql_query:
-      db: "{{ fworch_db_name }}"
-      path_to_script: "{{ database_install_dir }}/sql/creation/{{ item }}"
-    loop:
-      - fworch-create-tables.sql
-      - fworch-create-constraints.sql
-      - fworch-create-foreign-keys.sql
-      - fworch-create-indices.sql
-    when: installation_mode == "new" and ansible_version.string is version_compare('2.10', '<')
-
-  - name: create db users with group memmberships
+  - name: create db users with group memberships
     import_tasks: create-users.yml
     when: installation_mode == "new"
 
@@ -147,21 +137,5 @@
         format: csv
     when: installation_mode == "new"
 
-# non-ascii sql file cannot be executed under red hat
-# revert to command + psql?
-
-  - name: add base data to database fworch-fill-stm.sql
-    postgresql_query:
-      db: "{{ fworch_db_name }}"
-      path_to_script: "{{ database_install_dir }}/sql/creation/fworch-fill-stm.sql"
-      as_single_query: yes
-    when: ansible_version.string is version_compare('2.10', '>=')
-
-  - name: add base data to database fworch-fill-stm.sql
-    postgresql_query:
-      db: "{{ fworch_db_name }}"
-      path_to_script: "{{ database_install_dir }}/sql/creation/fworch-fill-stm.sql"
-    when: ansible_version.string is version_compare('2.10', '<')
-
-  become: yes
+  become: true
   become_user: postgres

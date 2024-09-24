@@ -1,0 +1,121 @@
+@using FWO.Api.Client
+@using FWO.Config.Api
+@using FWO.Ui.Services
+
+
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+
+
+<PopUp Title="@(userConfig.GetText("approvals"))" Show="@Display" Size=PopupSize.XLarge OnClose="async () => await Close()">
+    <Body>
+        @if (Display)
+        {
+            <div class="m-2">
+                <Table class="table table-bordered th-bg-secondary table-responsive overflow-auto sticky-header" TableItem="WfApproval" Items="Approvals" PageSize="0" ColumnReorder="true">
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("actions"))" Field="(x => x.Id)" Sortable="false" Filterable="false">
+                        <Template>
+                            <div class="btn-group">
+                                @if((context.ApproverDn == null || context.ApproverDn == "") && !WfHandler.AddTicketMode && !WfHandler.ReadOnlyMode)
+                                {
+                                    <button type="button" class="btn btn-sm btn-success" @onclick:preventDefault @onclick="() => InitAddComment(context)">
+                                        @(ModellingHandlerBase.DisplayButton(userConfig, "add_comment", Icons.Add, "comment"))</button>
+                                    <button type="button" class="btn btn-sm btn-warning" @onclick:preventDefault @onclick="() => AssignApproval(context)">
+                                        @(ModellingHandlerBase.DisplayButton(userConfig, "assign1", Icons.Assign))</button>
+                                }
+                            </div>
+                        </Template>
+                    </Column>                    
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("opened"))" Field="@(x => x.DateOpened)" Sortable="true" Filterable="true" />
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("deadline"))" Field="@(x => x.Deadline)" Sortable="true" Filterable="true" />
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("assigned"))" Field="@(x => x.AssignedGroup)" Sortable="true" Filterable="true" >
+                        <Template>
+                            @(new DistName(context.AssignedGroup).UserName)
+                        </Template>
+                    </Column>
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("approved"))" Field="@(x => x.ApprovalDate)" Sortable="true" Filterable="true" />
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("approver"))" Field="@(x => x.ApproverDn)" Sortable="true" Filterable="true" >
+                        <Template>
+                            @(new DistName(context.ApproverDn).UserName)
+                        </Template>
+                    </Column>
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("state"))" Field="@(x => x.StateId)" Sortable="true" Filterable="true" >
+                        <Template>
+                            @(States.Name[context.StateId])
+                        </Template>
+                    </Column>
+                    <Column TableItem="WfApproval" Title="@(userConfig.GetText("comments"))" Field="@(x => x.Id)" Sortable="true" Filterable="true" >
+                        <Template>
+                            @(context.GetAllComments())
+                        </Template>
+                    </Column>
+                </Table>
+            </div>
+        }
+    </Body>
+    <Footer>
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-secondary" @onclick:preventDefault @onclick="Close">@(userConfig.GetText("ok"))</button>
+        </div>
+    </Footer>
+</PopUp>
+
+<AssignObject @bind-Display="WfHandler.DisplayAssignApprovalMode" ResetParent="Reset" StatefulObject="WfHandler.ActApproval" Assign="WfHandler.AssignApprovalGroup" ObjectName="" RoleList="validRoles"/>
+<CommentObject @bind-Display="WfHandler.DisplayApprovalCommentMode" ResetParent="Reset" ObjectName="" Save="ConfAddComment"/>
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [Parameter]
+    public bool Display { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> DisplayChanged { get; set; }
+
+    [Parameter]
+    public WfHandler WfHandler { get; set; } = new ();
+
+    [Parameter]
+    public Func<Task> ResetParent { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public List<WfApproval> Approvals { get; set; } = new ();
+
+    [Parameter]
+    public WfStateDict States { get; set; } = new ();
+
+    static List<string> validRoles = new (){Roles.Approver};
+
+
+    private async Task Close()
+    {
+        Display = false;
+        await ResetParent();
+    }
+
+    private async Task Reset()
+    {
+        WfHandler.ResetApprovalActions();
+        StateHasChanged();
+    }
+
+    private async Task AssignApproval(WfApproval approval)
+    {
+        await WfHandler.SelectApprovalPopUp(approval, ObjAction.displayAssign);
+    }
+
+    private async Task InitAddComment(WfApproval approval)
+    {
+        await WfHandler.SelectApprovalPopUp(approval, ObjAction.displayComment);
+    }
+    private async Task ConfAddComment(string commentText)
+    {
+        await WfHandler.ConfAddCommentToApproval(commentText);
+        StateHasChanged();
+    }
+
+}

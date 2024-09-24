@@ -137,11 +137,15 @@ DECLARE
 	i_import_id ALIAS FOR $2; -- ID des Imports
 	i_prev_import_id BIGINT; -- temp. Record
 BEGIN
-	SELECT INTO i_prev_import_id MAX(control_id) FROM import_control WHERE mgm_id=i_mgm_id AND control_id<i_import_id AND successful_import;
-	IF NOT FOUND THEN
+	IF i_import_id IS NULL THEN
 		RETURN NULL;
+	ELSE
+		SELECT INTO i_prev_import_id MAX(control_id) FROM import_control WHERE mgm_id=i_mgm_id AND control_id<i_import_id AND successful_import;
+		IF NOT FOUND THEN
+			RETURN NULL;
+		END IF;
+		RETURN i_prev_import_id;
 	END IF;
-	RETURN i_prev_import_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -381,6 +385,12 @@ BEGIN
     END IF;
 ----------------------------
     RETURN v_changed;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION found_changes_in_import(BIGINT) RETURNS VARCHAR AS $$
+BEGIN
+    RETURN (select show_change_summary($1)<>'');
 END;
 $$ LANGUAGE plpgsql;
 

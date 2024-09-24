@@ -1,0 +1,77 @@
+@using FWO.Api.Client
+@using FWO.Config.Api
+
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+
+
+<PopUp Title="@(userConfig.GetText("add_comment") + ": " + ObjectName)" Show="@Display" Size=PopupSize.Small OnClose="async () => await Close()">
+    <Body>
+        @if (Display)
+        {
+            <div class="form-group row">
+                <label class="col-sm-3 col-form-label col-form-label-sm">@(userConfig.GetText("comment")):</label>
+                <div class="col-sm-8">
+                    <textarea rows="3" type="text" class="form-control form-control-sm" @bind="commentText" />
+                </div>
+            </div>
+        }
+    </Body>
+    <Footer>
+        <div class="btn-group">
+            <AuthorizeView Roles="@($"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.FwAdmin}")">
+                <Authorized>
+                    <button type="button" class="btn btn-sm btn-primary" @onclick:preventDefault @onclick="async () => {await Save(commentText); await Close();}">@(userConfig.GetText("save"))</button>
+                </Authorized>
+                <NotAuthorized>
+                    <button type="button" class="btn btn-sm btn-primary" disabled>@(userConfig.GetText("save"))</button>
+                </NotAuthorized> 
+            </AuthorizeView>
+            <button type="button" class="btn btn-sm btn-secondary" @onclick:preventDefault @onclick="Close">@(userConfig.GetText("cancel"))</button>
+        </div>
+    </Footer>
+</PopUp>
+
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [Parameter]
+    public bool Display { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> DisplayChanged { get; set; }
+
+    [Parameter]
+    public Func<Task> ResetParent { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public string ObjectName { get; set; } = "";
+
+    [Parameter]
+    public Func<string, Task> Save { get; set; } = DefaultInit.DoNothing;
+
+    private string commentText = "";
+    bool FirstTry = true;
+
+
+    protected override void OnParametersSet()
+    {
+        if(Display && FirstTry)
+        {
+            commentText = "";
+            FirstTry = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        await ResetParent();
+        FirstTry = true;
+        Display = false;
+    }
+}

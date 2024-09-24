@@ -1,0 +1,109 @@
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Api.Client
+@using FWO.Config.Api
+@using FWO.Ui.Services
+@using FWO.Middleware.Client
+
+@page "/request/plannings/{ticketId?}"
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Planner}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+@inject NavigationManager NavigationManager
+@inject MiddlewareClient middlewareClient
+
+<h3>@(userConfig.GetText("plannings"))</h3>
+<hr />
+
+@if(InitComplete)
+{
+    <DisplayTicketTable Phase="WorkflowPhases.planning" States="states" WfHandler="wfHandler" 
+        ResetParent="Reset" StartPhase="StartPlanTask"/>
+}
+else
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">@(userConfig.GetText("loading"))</span>
+    </div>
+}
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    [Parameter]
+    public string? TicketId { get; set; }
+
+    private WfHandler wfHandler = new ();
+    private WfStateDict states = new ();
+    private List<int> OwnerIds = new ();
+    private bool InitComplete = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            apiConnection.SetProperRole(authenticationStateTask!.Result.User, new List<string> { Roles.Admin, Roles.Planner, Roles.FwAdmin, Roles.Auditor});
+            await states.Init(apiConnection);
+
+            if(userConfig.ReqOwnerBased)
+            {
+                OwnerIds = (await ModellingHandlerBase.GetOwnApps(authenticationStateTask, userConfig, apiConnection, DisplayMessageInUi)).ConvertAll(x => x.Id);
+            }
+            wfHandler = new (DisplayMessageInUi, userConfig, authenticationStateTask!.Result.User, apiConnection, middlewareClient, WorkflowPhases.planning){};
+            await Reset();
+            await HandleTicketId();
+            wfHandler.SetContinueEnv(ObjAction.plan);
+    
+            InitComplete = true;
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("fetch_requests"), "", true);
+        }
+    }
+
+    private async Task HandleTicketId()
+    {
+        if(long.TryParse(TicketId, out long ticketId))
+        {
+            string newPhase = await wfHandler.HandleInjectedTicketId(WorkflowPhases.planning, ticketId);
+            if(newPhase != "")
+            {
+                NavigationManager.NavigateTo($"/request/{newPhase.ToString()}s/{TicketId}");
+            }
+        }
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            wfHandler.ReadOnlyMode = !(authenticationStateTask!.Result.User.IsInRole(Roles.Planner) || authenticationStateTask!.Result.User.IsInRole(Roles.FwAdmin) || authenticationStateTask!.Result.User.IsInRole(Roles.Admin));
+            await wfHandler.Init(OwnerIds);
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("init_environment"), "", true);
+        }
+    }
+
+    private async Task StartPlanTask(WfReqTask reqTask)
+    {
+        try
+        {
+            reqTask.Start = DateTime.Now;
+            await wfHandler.StartWorkOnReqTask(reqTask, ObjAction.plan);
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("start_work"), "", true);
+        }
+    }
+}

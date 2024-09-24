@@ -1,0 +1,170 @@
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Api.Client
+@using FWO.Config.Api
+@using FWO.Ui.Services
+@using FWO.Middleware.Client
+
+@page "/request/implementations/{ticketId?}"
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Implementer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+@inject NavigationManager NavigationManager
+@inject MiddlewareClient middlewareClient
+
+<h3>@(userConfig.GetText("implementations"))</h3>
+<hr />
+
+@if(InitComplete)
+{
+    <ImplOptSelection SelectOwner="SelectOwner" SelectDevice="SelectDevice" Owners="Owners" WfHandler="wfHandler" />
+
+    @if(DisplayTickets)
+    {
+        <DisplayTicketTable Phase="WorkflowPhases.implementation" States="states" WfHandler="wfHandler" 
+            ResetParent="Reset" StartImplPhase="StartImplementTask"/>
+    }
+    else
+    {
+        <DisplayImplTaskTable Phase="WorkflowPhases.implementation" States="states" WfHandler="wfHandler" 
+            ResetParent="Select" AllImplTasks="wfHandler.AllVisibleImplTasks" ImplTaskView="true" StartImplPhase="StartImplementTask"/>
+    }
+}
+else
+{
+   <div class="spinner-border" role="status">
+        <span class="visually-hidden">@(userConfig.GetText("loading"))</span>
+    </div>
+}
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    [Parameter]
+    public string? TicketId { get; set; }
+
+    private WfHandler wfHandler = new ();
+    private WfStateDict states = new ();
+    private List<FwoOwner> Owners = new();
+    private bool InitComplete = false;
+
+    private bool DisplayTickets = true;
+    private Device selectedDeviceOpt = new ();
+    private FwoOwner selectedOwnerOpt = new (){ Id = -1 };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            apiConnection.SetProperRole(authenticationStateTask!.Result.User, new List<string> { Roles.Admin, Roles.Implementer, Roles.FwAdmin, Roles.Auditor});
+            await states.Init(apiConnection);
+
+            if(userConfig.ReqOwnerBased)
+            {
+                Owners = await ModellingHandlerBase.GetOwnApps(authenticationStateTask, userConfig, apiConnection, DisplayMessageInUi);
+            }
+            wfHandler = new (DisplayMessageInUi, userConfig, authenticationStateTask!.Result.User, apiConnection, middlewareClient, WorkflowPhases.implementation){};
+            await Reset();
+            await HandleTicketId();
+            await Select();
+            wfHandler.SetContinueEnv(ObjAction.implement);
+            if(wfHandler.ActTicket.Tasks.Count >= 1 && wfHandler.ActTicket.Tasks.First().ImplementationTasks.Count >= 1)
+            {
+                await wfHandler.ContinueImplPhase(wfHandler.ActTicket.Tasks.First().ImplementationTasks.First());
+            }
+            InitComplete = true;
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("fetch_requests"), "", true);
+        }
+    }
+
+    private async Task HandleTicketId()
+    {
+        if(long.TryParse(TicketId, out long ticketId))
+        {
+            string newPhase = await wfHandler.HandleInjectedTicketId(WorkflowPhases.implementation, ticketId);
+            if(newPhase != "")
+            {
+                NavigationManager.NavigateTo($"/request/{newPhase.ToString()}s/{TicketId}");
+            }
+        }
+    }
+
+    private async Task Select()
+    {
+        if(userConfig.ReqOwnerBased)
+        {
+            await SelectOwner(selectedOwnerOpt);
+        }
+        else
+        {
+            await SelectDevice(selectedDeviceOpt);
+        }
+    }
+
+    private async Task SelectOwner(FwoOwner newOwnerOpt)
+    {
+        try
+        {
+            selectedOwnerOpt = newOwnerOpt;
+            DisplayTickets = wfHandler.SelectOwnerImplTasks(selectedOwnerOpt);
+            await Reset();
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("select_owner"), "", true);
+        }
+    }
+
+    private async Task SelectDevice(Device newDeviceOpt)
+    {
+        try
+        {
+            selectedDeviceOpt = newDeviceOpt;
+            DisplayTickets = wfHandler.SelectDeviceImplTasks(selectedDeviceOpt);
+            await Reset();
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("select_device"), "", true);
+        }
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            wfHandler.ReadOnlyMode = !(authenticationStateTask!.Result.User.IsInRole(Roles.Implementer) || authenticationStateTask!.Result.User.IsInRole(Roles.FwAdmin) || authenticationStateTask!.Result.User.IsInRole(Roles.Admin));
+            await wfHandler.Init(Owners.ConvertAll(x => x.Id));
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("init_environment"), "", true);
+        }
+    }
+    
+    private async Task StartImplementTask(WfImplTask implTask)
+    {
+        try
+        {
+            implTask.Start = DateTime.Now;
+            implTask.Stop = null;
+            await wfHandler.StartWorkOnImplTask(implTask, ObjAction.implement);
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("start_work"), "", true);
+        }
+    }
+}

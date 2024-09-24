@@ -1,13 +1,30 @@
 
 - block:
+    - name: initialize handler for datarecovery
+      set_fact:
+        ui_handler_guard: start
+      changed_when: true
+      notify:
+      - ui handler
+      when: installation_mode == "upgrade"
 
-    - name: install libs needed for pdf creator nuget packet HakanL/WkHtmlToPdf-DotNet
-      package:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - libjpeg62
-        - libgdiplus
+    - name: check for ui dir
+      stat:
+        path: "{{ fworch_home }}/ui"
+      register: ui_dir_check
+
+    - name: backup ui dir
+      synchronize:
+        src: "{{ fworch_home }}/ui"
+        dest: "{{ fworch_home }}/backup_ui"
+      delegate_to: "{{ inventory_hostname }}"
+      when: ui_dir_check.stat.exists and installation_mode == "upgrade"
+
+    - name: remove ui dir
+      file:
+        state: absent
+        path: "{{ fworch_home }}/ui"
+      when: installation_mode == "upgrade"
 
     - name: create ui dir
       file:
@@ -16,21 +33,37 @@
         owner: "{{ fworch_user }}"
         group: "{{ fworch_group }}"
 
-    - name: copy ui files to frontend target
+    - name: copy ui files to frontend target (localhost)
+      synchronize:
+        src: "FWO.UI"
+        dest: "{{ ui_dir }}"
+        rsync_opts:
+        - "--chown={{ fworch_user }}:{{ fworch_group }}"
+      tags: [ 'test' ]
+      when: inventory_hostname == 'localhost'
+
+    - name: copy ui files to frontend target (remote)
       copy:
-        src: "{{ item }}"
+        src: "FWO.UI"
         dest: "{{ ui_dir }}"
         owner: "{{ fworch_user }}"
         group: "{{ fworch_group }}"
-      loop:
-        - FWO_UI
+      tags: [ 'test' ]
+      when: inventory_hostname != 'localhost'
 
-  become: yes
+  become: true
 
-- include: ui_apache_install_and_setup.yml
+- include_tasks: ui_apache_install_and_setup.yml
 
-- include: ui_install_dot_net.yml
+- include_tasks: install_and_run_ui_service.yml
 
 - name: include upgrade script
   import_tasks: run-upgrades.yml
   when: "installation_mode == 'upgrade'"
+
+- name: finalize handler for datarecovery
+  set_fact:
+    ui_handler_guard: stop
+  changed_when: true
+  notify: "ui handler"
+  when: installation_mode == "upgrade"

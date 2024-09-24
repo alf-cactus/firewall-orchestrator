@@ -225,7 +225,7 @@ sub ruleset_does_not_fit {
 	my $result = 1;
 
 	while ( (my $key, my $value) = each %{$href_rulesetname}) {
-		if ($rulebasename_to_find eq $value->{'dev_rulebase'}) {
+		if ($rulebasename_to_find eq $value->{'local_rulebase_name'}) {
 			$result=0;
 		}
 	}
@@ -397,7 +397,10 @@ sub get_import_infos_for_mgm {
 	my $str_of_config_files = '';
 	my $version;
 
-	$sqlcode = "SELECT mgm_name,management.dev_typ_id,dev_typ_manufacturer,dev_typ_version,ssh_hostname,ssh_user,ssh_private_key,ssh_public_key,ssh_port,config_path FROM management,stm_dev_typ WHERE stm_dev_typ.dev_typ_id=management.dev_typ_id AND mgm_id='$mgm_id'";
+	$sqlcode = "SELECT mgm_name,management.dev_typ_id,dev_typ_manufacturer,dev_typ_version,ssh_hostname, " .
+		" username as ssh_user,secret, public_key as ssh_public_key,ssh_port,config_path FROM management " .
+		" LEFT JOIN import_credential ON (management.import_credential_id=import_credential.id) LEFT JOIN stm_dev_typ USING (dev_typ_id) " .
+		" WHERE stm_dev_typ.dev_typ_id=management.dev_typ_id AND mgm_id='$mgm_id'";
 	$res_array_ref = exec_pgsql_cmd_return_array_ref($sqlcode, $fehler);
 	if (!defined($fehler) || $fehler || !defined($res_array_ref)) {
 		if (!defined($fehler)) {
@@ -1158,7 +1161,7 @@ sub fill_import_tables_from_csv {
 	$fields = "(" . join(',',@rule_import_fields) . ")";
 	my @rulebase_ar = ();
 	foreach my $d (keys %{$rulebases}) {
-		my $rb = $rulebases->{$d}->{'dev_rulebase'};
+		my $rb = $rulebases->{$d}->{'local_rulebase_name'};
 		my $rulebase_name_sanitized = join('__', split /\//, $rb);
 		if ( !grep( /^$rulebase_name_sanitized$/, @rulebase_ar ) ) {
 			@rulebase_ar = (@rulebase_ar, $rulebase_name_sanitized);
@@ -1285,7 +1288,7 @@ sub fill_import_tables_from_csv_with_sql {
 	}
 	$fields = join(',',@rule_import_fields);
 	foreach my $d (keys %{$rulebases}) {
-		my $rb = $rulebases->{$d}->{'dev_rulebase'};
+		my $rb = $rulebases->{$d}->{'local_rulebase_name'};
 		$csv_rule_file = $fworch_workdir . '/' . $rb . '_rulebase.csv';
 		$fehler = build_and_exec_sql_statements('import_rule',$fields, $csv_rule_file);
 		if ($fehler) { $fehler_count ++; }

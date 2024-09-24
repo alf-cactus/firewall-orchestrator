@@ -1,0 +1,101 @@
+﻿@implements IDisposable
+
+<!-- Display the tab headers -->
+<ul class="nav nav-tabs  @(WholeWidth ? "nav-fill" : "") sticky-marker @(DarkMode ? "bg-transparent" : "")" style="@(DarkMode ? "--bs-nav-tabs-border-color: transparent;" : "")">
+    @foreach (Tab tab in Tabs)
+    {
+        <li class="nav-item">
+            <a href="" @onclick="() => SetActiveTab(tab)" @onclick:preventDefault class="nav-link @(DarkMode ? "text-white" : "text-dark")
+                @(ActiveTab == tab ? (DarkMode ? "bg-transparent active" : "active") : "")"
+               style="@(DarkMode ? (ActiveTab == tab ? "border-color: #0d6efd;  border-bottom-style: none;" : "border-color: #0d6efd; border-right-style:none; border-top-style:none; border-left-style: none;") : "")">
+
+                @tab.Title
+                @*@if (Closeable)
+                    {
+                        <div class="ms-1 @(Icons.Close)"></div>
+                    }*@
+            </a>
+        </li>
+    }
+</ul>
+
+<CascadingValue Value="this" IsFixed="true">
+    <!-- Display active tab -->
+    <div class="nav-tabs-body pt-3">
+        @ChildContent
+    </div>
+</CascadingValue>
+
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool DarkMode { get; set; } = false;
+
+    [Parameter]
+    public bool KeepPanelsAlive { get; set; }
+
+    [Parameter]
+    public bool WholeWidth { get; set; } = true;
+
+    public List<Tab> Tabs = new List<Tab>();
+
+    public Tab? ActiveTab { get; private set; }
+
+    private bool _isDisposed;
+
+    internal void AddTab(Tab tab, int pos = -1)
+    {
+        Tabs.Insert(pos >= 0 && pos <= Tabs.Count ? pos : Tabs.Count, tab);
+        if (ActiveTab == null || Tabs.Count == 1)
+        {
+            SetActiveTab(tab);
+        }
+        StateHasChanged();
+    }
+
+    internal void RemoveTab(Tab tab)
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        var index = Tabs.IndexOf(tab);
+        if (ActiveTab != null && tab == ActiveTab && index == Tabs.Count - 1)
+        {
+            SetActiveTab(Tabs[index > 0 ? index - 1 : 0]);
+            if (Tabs.Count == 1)
+            {
+                ActiveTab = null;
+            }
+        }
+        Tabs.Remove(tab);
+        StateHasChanged();
+    }
+
+    public void SetActiveTab(Tab tab)
+    {
+        if (ActiveTab == null || ActiveTab != tab)
+        {
+            ActiveTab = tab;
+            StateHasChanged();
+        }
+    }
+
+    public void SetActiveTab(int index)
+    {
+        if (Tabs.Count > 0 && (ActiveTab == null || ActiveTab != Tabs[index]))
+        {
+            ActiveTab = Tabs[index];
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+    }
+}

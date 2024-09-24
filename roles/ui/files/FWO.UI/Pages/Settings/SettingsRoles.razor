@@ -1,0 +1,201 @@
+﻿@using BlazorTable
+@using System.Net
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Api.Client
+@using FWO.Ui.Services
+@using FWO.Middleware.Client
+@using FWO.Config.Api
+@using FWO.Middleware.RequestParameters
+@using RestSharp
+
+@page "/settings/roles"
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Auditor}")]
+
+@inject ApiConnection apiConnection
+@inject MiddlewareClient middlewareClient
+@inject UserConfig userConfig
+
+<div class="input-group">
+    <h3>@(userConfig.GetText("roles"))</h3>
+    <HelpLink Page="settings/roles"/>
+</div>
+<H6 data-toggle="tooltip" title="@(userConfig.PureLine("H5332") + "\r\n" + userConfig.PureLine("H5361") + "\r\n"+ userConfig.PureLine("H5362") +
+    "\r\n" + userConfig.PureLine("H5363") + "\r\n" + userConfig.PureLine("H5364"))">@(userConfig.GetText("U5215"))</H6>
+<hr />
+
+<div class="m-2 vheight75">
+    <Table class="table table-bordered th-bg-secondary table-responsive overflow-auto sticky-header" TableItem="Role" Items="roles" PageSize="0" ColumnReorder="true">
+        <Column TableItem="Role" Title="@(userConfig.GetText("actions"))" Field="(x => x.Name)" Sortable="false" Filterable="false">
+            <Template>
+                <div class="btn-group" data-toggle="tooltip" title="@(userConfig.PureLine("H5341") + "\r\n" + userConfig.PureLine("H5351") +
+                        "\r\n" + userConfig.PureLine("H5352") + "\r\n" + userConfig.PureLine("H5353"))">
+                    @if (context.Name != Roles.MiddlewareServer && context.Name != Roles.Anonymous)
+                    {
+                        <button type="button" class="btn btn-sm btn-success" @onclick="() => AddToRole(context)">@(userConfig.GetText("assign_user_group"))</button>
+                        @if(context.Users.Count > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveFromRole(context)">@(userConfig.GetText("remove_user_group"))</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-sm btn-danger" disabled>@(userConfig.GetText("remove_user_group"))</button>
+                        }
+                    }
+                    else
+                    {
+                        <label class="m-2">@(userConfig.GetText("U5206"))</label>
+                    }
+                </div>
+            </Template>
+        </Column>
+        <Column TableItem="Role" Title="@(userConfig.GetText("name"))" Field="@(x => x.Name)" Sortable="true" Filterable="true" />
+        <Column TableItem="Role" Title="@(userConfig.GetText("description"))" Field="@(x => x.Description)" Sortable="true">
+            <Template>
+                @(userConfig.GetText(context.Description))
+            </Template>
+        </Column>
+        <Column TableItem="Role" Title="@(userConfig.GetText("users_groups"))" Field="@(x => x.Users)" Sortable="false">
+            <Template>
+                @(context.UserList())
+            </Template>
+        </Column>
+    </Table>
+</div>
+
+<SearchUser @bind-Display="AddMode" AddUser="AddUserFromLdap" AddGroup="AddGroupFromLdap" UserSearchMode="true" GroupSearchMode="true" Title="@(actRole.Name)"/>
+<RemoveUser @bind-Display="RemoveUserMode" Remove="RemoveUser" Users="actRole.Users" Title="@(userConfig.GetText("remove_user_group_from_role") + ": " + actRole.Name)" Label="@(userConfig.GetText("user_group"))"/>
+
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+
+    private List<Role> roles = new();
+    private Role actRole = new Role();
+
+    private bool AddMode = false;
+    private bool RemoveUserMode = false;
+    private bool SearchMode = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // get roles from LDAP
+            roles = await RoleAccess.GetRolesFromInternalLdap(middlewareClient);
+            if (roles.Count == 0)
+            {
+                DisplayMessageInUi(null, userConfig.GetText("fetch_roles"), userConfig.GetText("E5251"), true);
+            }
+        }
+        catch (System.Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("fetch_data"), "", true);
+        }
+    }
+
+    private void AddToRole(Role role)
+    {
+        actRole = role;
+        AddMode = true;
+    }
+
+    private void RemoveFromRole(Role role)
+    {
+        actRole = role;
+        RemoveUserMode = true;
+    }
+
+    private async Task AddUserFromLdap(UiUser ldapUser)
+    {
+        await AddUserToRole(ldapUser);
+    }
+
+    private async Task AddGroupFromLdap(string groupDn)
+    {
+        await AddUserToRole(new UiUser(){ Dn = groupDn , Name = (new DistName(groupDn)).Group});
+    }
+
+    private async Task AddUserToRole(UiUser user)
+    {
+        if (user == null)
+        {
+            DisplayMessageInUi(null, userConfig.GetText("assign_user_group_to_role"), userConfig.GetText("E5240"), true);
+        }
+        else if (actRole.Users.Exists(x => x.Dn == user.Dn))
+        {
+            DisplayMessageInUi(null, userConfig.GetText("assign_user_group_to_role"), userConfig.GetText("E5254"), true);
+        }
+        else
+        {
+            // assign user to role in LDAP
+            try
+            {
+                RoleAddDeleteUserParameters roleAddUserParameters = new RoleAddDeleteUserParameters { Role = actRole.Dn, UserDn = user.Dn };
+                RestResponse<bool> middlewareServerResponse = await middlewareClient.AddUserToRole(roleAddUserParameters);
+                if ((middlewareServerResponse.StatusCode != HttpStatusCode.OK) || (middlewareServerResponse.Data == false))
+                {
+                    DisplayMessageInUi(null, userConfig.GetText("assign_user_group_to_role"), userConfig.GetText("E5255"), true);
+                }
+                else
+                {
+                    actRole.Users.Add(user);
+                    roles[roles.FindIndex(x => x.Name == actRole.Name)] = actRole;
+                    AddMode = false;
+                    SearchMode = false;
+                    JwtEventService.PermissionsChanged(user.Dn);
+                }
+            }
+            catch (System.Exception exception)
+            {
+                DisplayMessageInUi(exception, userConfig.GetText("assign_user_group_to_role"), "", true);
+            }
+        }
+    }
+
+    private async Task RemoveUser(UiUser selectedUserToRemove)
+    {
+        if (selectedUserToRemove.Dn != "")
+        {
+            if (actRole.Name == Roles.Admin && actRole.Users.Count < 2)
+            {
+                DisplayMessageInUi(null, userConfig.GetText("remove_user_group_from_role"), userConfig.GetText("E5256"), true);
+            }
+            else
+            {
+                // delete user in LDAP
+                try
+                {
+                    RoleAddDeleteUserParameters removeUserFromRoleParameters = new RoleAddDeleteUserParameters { UserDn = selectedUserToRemove.Dn, Role = actRole.Dn };
+                    RestResponse<bool> middlewareServerResponse = await middlewareClient.RemoveUserFromRole(removeUserFromRoleParameters);
+                    if (middlewareServerResponse.StatusCode != HttpStatusCode.OK || middlewareServerResponse.Data == false)
+                    {
+                        DisplayMessageInUi(null, userConfig.GetText("remove_user_group_from_role"), userConfig.GetText("E5257"), true);
+                    }
+                    else
+                    {
+                        actRole.Users.Remove(selectedUserToRemove);
+                        roles[roles.FindIndex(x => x.Name == actRole.Name)] = actRole;
+                        RemoveUserMode = false;
+                    }
+                }
+                catch (System.Exception exception)
+                {
+                    DisplayMessageInUi(exception, userConfig.GetText("remove_user_group_from_role"), "", true);
+                }
+            }
+        }
+        else
+        {
+            DisplayMessageInUi(null, userConfig.GetText("remove_user_group_from_role"), userConfig.GetText("E5258"), true);
+        }
+    }
+
+    private void Cancel()
+    {
+        AddMode = false;
+        RemoveUserMode = false;
+    }
+}

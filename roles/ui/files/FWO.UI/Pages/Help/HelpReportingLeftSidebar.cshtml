@@ -1,0 +1,37 @@
+﻿@page "/help/reporting/leftside"
+@model FWO.Ui.Pages.Help.MainModel
+@{
+    Layout = "HelpLayout";
+}
+@section sidebar{
+    @{ 
+        await Html.RenderPartialAsync("HelpReportingSidebar.cshtml"); 
+    }
+}
+@using FWO.Config.Api
+@inject UserConfig userConfig
+
+<div class="p-2">
+    <h3>@userConfig.GetText("left_sidebar")</h3>
+    @(Html.Raw(userConfig.GetText("H1501")))
+    <ul>
+        <li>@(Html.Raw(userConfig.GetText("H1502")))</li>
+        <li>@(Html.Raw(userConfig.GetText("H1504")))
+            <ul>
+                <li>@(Html.Raw(userConfig.GetText("H1505")))</li>
+                <li>@(Html.Raw(userConfig.GetText("H1506")))
+                <ul>
+                    <li>@(Html.Raw(userConfig.GetText("H1507")))</li>
+                    <li>@(Html.Raw(userConfig.GetText("H1508")))</li>
+                    <li>@(Html.Raw(userConfig.GetText("H1509")))</li>
+                </ul>
+                </li>
+            </ul>
+        </li>
+        <li>@(Html.Raw(userConfig.GetText("H1510")))</li>
+        <li>@(Html.Raw(userConfig.GetText("H1511")))</li>
+        <li>@(Html.Raw(userConfig.GetText("H1503")))</li>
+        <li>@(Html.Raw(userConfig.GetText("H1512")))</li>
+        <li>@(Html.Raw(userConfig.GetText("H1513")))</li>
+    </ul>
+</div>

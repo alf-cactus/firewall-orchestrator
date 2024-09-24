@@ -1,0 +1,113 @@
+@using FWO.Config.Api
+@using FWO.Ui.Services
+
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@inject UserConfig userConfig
+
+@if(Phase == WorkflowPhases.request && !WfHandler.ReadOnlyMode)
+{
+    <button type="button" class="btn btn-success m-2" @onclick="AddTicket">@(ModellingHandlerBase.DisplayButton(userConfig, "add_new_request", Icons.Add))</button>
+}
+
+<div class="m-2 vheight75">
+    <Table class="table table-bordered th-bg-secondary th-bg-secondary sticky-header bs-overflow" TableItem="WfTicket" Items="WfHandler.TicketList" PageSize="0" ColumnReorder="true">
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("actions"))" Field="(x => x.Id)" Sortable="false" Filterable="false">
+            <Template>
+                <div class="btn-group">
+                    @if (Phase == WorkflowPhases.request && context.StateId < WfHandler.MasterStateMatrix.LowestEndState && !WfHandler.ReadOnlyMode)
+                    {
+                        <button type="button" class="btn btn-sm btn-warning" @onclick="() => EditTicket(context)">@(ModellingHandlerBase.DisplayButton(userConfig, "edit", Icons.Edit))</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => ShowTicketDetails(context)">@(ModellingHandlerBase.DisplayButton(userConfig, "details", Icons.Display))</button>
+                    }
+                </div>
+            </Template>
+        </Column>
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("id"))" Field="@(x => x.Id)" Sortable="true" Filterable="true" />
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("title"))" Field="@(x => x.Title)" Sortable="true" Filterable="true" />
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("tasks"))" Field="@(x => x.Id)" Sortable="true" Filterable="false" >
+            <Template>
+                @if(Phase < WorkflowPhases.implementation)
+                {
+                    @(context.Tasks.Count)
+                }
+                else
+                {
+                    @(context.NumberImplTasks())
+                }
+            </Template>
+        </Column>
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("requester"))" Field="@(x => x.Requester)" Sortable="true" Filterable="true" >
+            <Template>
+                @(context.Requester?.Name)
+            </Template>
+        </Column>
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("state"))" Field="@(x => x.StateId)" Sortable="true" Filterable="false" >
+            <Template>
+                @(States.Name[context.StateId])
+            </Template>
+        </Column>
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("priority"))" Field="@(x => x.Priority)" Sortable="true" Filterable="false" >
+            <Template>
+                @(WfHandler.PrioList.FirstOrDefault(x => x.NumPrio == context.Priority)?.Name)
+            </Template>
+        </Column>
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("deadline"))" Field="@(x => x.Deadline)" Sortable="true" Filterable="true" />
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("created"))" Field="@(x => x.CreationDate)" Sortable="true" Filterable="true" />
+        <Column TableItem="WfTicket" Title="@(userConfig.GetText("closed"))" Field="@(x => x.CompletionDate)" Sortable="true" Filterable="true" />
+    </Table>
+</div>
+
+<DisplayTicket Phase="Phase" States="States" WfHandler="WfHandler" ResetParent="Reset" 
+    StartPhase="StartPhase" StartImplPhase="StartImplPhase"/>
+
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [Parameter]
+    public WorkflowPhases Phase { get; set; } = WorkflowPhases.request;
+
+    [Parameter]
+    public WfStateDict States { get; set; } = new ();
+
+    [Parameter]
+    public WfHandler WfHandler { get; set; } = new ();
+
+    [Parameter]
+    public Func<Task> ResetParent { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public Func<WfReqTask, Task> StartPhase { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public Func<WfImplTask, Task> StartImplPhase { get; set; } = DefaultInit.DoNothing;
+
+
+    private async Task Reset()
+    {
+        WfHandler.ResetTicketActions();
+        await ResetParent();
+        StateHasChanged();
+    }
+
+    private void ShowTicketDetails(WfTicket ticket)
+    {
+        WfHandler.SelectTicket(ticket, ObjAction.display);
+    }
+
+    private void AddTicket()
+    {
+        WfHandler.SelectTicket(new (){ Requester = userConfig.User }, ObjAction.add);
+    }
+
+    private void EditTicket(WfTicket ticket)
+    {
+        WfHandler.SelectTicket(ticket, ObjAction.edit);
+    }
+}

@@ -82,11 +82,22 @@ my $rulebases;
 		&get_import_infos_for_mgm($mgm_id, $fworch_workdir, $cfg_dir);
 $error_count_global = &error_handler_add(undef, $error_level = 5, "mgm-id-not-found: $mgm_id", $error_count_local, $error_count_global);
 
+# check if device is a legacy device, otherwise exit here without doing anything
+# (2,'Netscreen','5.x-6.x','Netscreen', '');
+# (4,'FortiGateStandalone','5ff','Fortinet','');
+# (5,'Barracuda Firewall Control Center','Vx','phion','');
+# (6,'phion netfence','3.x','phion','');
+# (7,'Check Point','R5x-R7x','Check Point','');
+if (!(grep {$_ eq $dev_typ_id} (2,4,5,6,7,8))) {
+	output_txt("Management $mgm_name (mgm_id=$mgm_id, dev_typ_id=$dev_typ_id): not a legacy device type, skipping\n");
+	exit (0);
+}
+
 my $import_was_already_running = (&is_import_running($mgm_id))?1:0;
 my $initial_import_flag = &is_initial_import($mgm_id);
 $current_import_id  = &insert_control_entry($initial_import_flag,$mgm_id);	# set import lock
 
-print ("current_import_id=$current_import_id\n");
+output_txt ("current_import_id=$current_import_id");
 $error_count_global = &error_handler_add($current_import_id, $error_level = 3, "set-import-lock-failed", !defined($current_import_id), $error_count_global);
 $error_count_global = &error_handler_add($current_import_id, $error_level = 2, "import-already-running: $mgm_name (ID: $mgm_id)",
 	$import_was_already_running, $error_count_global);
@@ -147,7 +158,10 @@ if (!$error_count_global) {
 										$current_import_id, "$cfg_dir/$audit_log_file", $prev_imp_time, $fullauditlog, $debug_level);
 				if ($error_count_local) { 
 					$error_count_global = &error_handler_add(	$current_import_id, $error_level = 3, "parse-$error_count_local", $error_count_local=1, $error_count_global);
-					$error_count_local = &exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");
+					if (defined($current_import_id)) 
+					{
+						$error_count_local = &exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");
+					}
 					$error_count_global = &error_handler_add
 						($current_import_id, $error_level = 3, "remove-import-lock-failed: $error_count_local", $error_count_local, $error_count_global);
 				}
@@ -175,7 +189,7 @@ if (!$error_count_global) {
 				# if $csvonly is set: replace import id in all csv files with $current_import_id
 				if ($csvonly) 
 				{
-					my @rulebase_basenames = split(/,/, get_ruleset_name_list($rulebases));
+					my @rulebase_basenames = split(/,/, get_local_ruleset_name_list($rulebases));
 					my @rulebase_fullnames = ();
 					for my $filename (@rulebase_basenames) {
 						@rulebase_fullnames = (@rulebase_fullnames, $fworch_workdir . '/' . $filename . '_rulebase.csv' );
@@ -201,18 +215,21 @@ if (!$error_count_global) {
 					}
 				}
 				# 4) wrapping up
+				# updating last import attempt date directly in DB
+				&exec_pgsql_cmd_no_result("UPDATE management SET last_import_attempt=now() WHERE mgm_id=$mgm_id");
+
 				if (!$error_count_global) {  # import ony when no previous errors occured
-					$error_count_local = 0;						
-					if (!&exec_pgsql_cmd_return_value("SET client_min_messages TO NOTICE; SELECT import_all_main($current_import_id)")) {
+					$error_count_local = 0;
+					my $imp_result_str = &exec_pgsql_cmd_return_value("SET client_min_messages TO NOTICE; SELECT import_all_main($current_import_id, FALSE)");		
+					if ($imp_result_str ne '') {
 						$error_count_local = 1;
-						print("first import run found errors; re-running import with DEBUG option\n");
-						&exec_pgsql_cmd_return_value("SET client_min_messages TO DEBUG1; SELECT import_all_main($current_import_id)");
+						print("first import run found errors: " . $imp_result_str . ", re-running import with DEBUG option\n");
+						&exec_pgsql_cmd_return_value("SET client_min_messages TO DEBUG1; SELECT import_all_main($current_import_id, FALSE)");
 						print("second import run with debugging completed\n");
 					} else {
 						print("found no errors during import\n");
 					}
 					$error_count_global = &error_handler_add ($current_import_id, $error_level = 3, "",	$error_count_local, $error_count_global);
-#					&read_user_client_classification_from_ldap ($error_count_local=1, $current_import_id);
 					$changes = &exec_pgsql_cmd_return_value("SELECT show_change_summary($current_import_id)");
 					# updating md5sum
 					if (!$error_count_global) { &exec_pgsql_cmd_no_result("UPDATE management SET last_import_md5_complete_config='$new_md5sum' WHERE mgm_id=$mgm_id"); }
@@ -236,7 +253,10 @@ if (!$error_count_global) {
 		}
 	}
 	# Cleanup and statistics
-	&exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");   # this sets import_control.stop_time to now()
+	if (defined($current_import_id)) 
+	{
+		&exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");   # this sets import_control.stop_time to now()
+	}
 	&clean_up_fworch_db($current_import_id);
 	if (defined($save_import_results_to_file) && $save_import_results_to_file && ($error_count_global || $changes ne '')) { # if changes or errors occured: move config & csv to archive
 		system ("${bin_path}mkdir -p $archive_dir; cd $fworch_workdir; ${bin_path}tar cfz $archive_dir/${current_import_id}_`${bin_path}date +%F_%T`_mgm_id_$mgm_id.tgz .");
@@ -244,6 +264,9 @@ if (!$error_count_global) {
 	#`cp -f $fworch_workdir/cfg/*.cfg /var/itsecorg/fw-config/`; # special backup for several configs - dos-box
 	if (!$no_cleanup) { rmtree $fworch_workdir; }
 } else {
-	&exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");   # this sets import_control.stop_time to now()
+	if (defined($current_import_id)) 
+	{
+		&exec_pgsql_cmd_no_result("SELECT remove_import_lock($current_import_id)");   # this sets import_control.stop_time to now()
+	}
 }
 exit ($error_count_global);

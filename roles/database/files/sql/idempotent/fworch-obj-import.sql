@@ -1,7 +1,4 @@
--- $Id: iso-obj-import.sql,v 1.1.2.8 2011-05-12 12:11:52 tim Exp $
--- $Source: /home/cvs/iso/package/install/database/Attic/iso-obj-import.sql,v $
-
-----------------------------------------------------
+--------------------------------------------
 -- FUNCTION:  import_nwobject_main
 -- Zweck:     fuegt alle Objekte des aktuellen Imports in die object-Tabelle
 -- Zweck:     verwendet die Funktion insert_single_nwobj zum Einfuegen der Einzelobjekte
@@ -90,7 +87,9 @@ $$ LANGUAGE plpgsql;
 -- DROP FUNCTION import_nwobj_single(BIGINT, integer, BIGINT, boolean);
 
 CREATE OR REPLACE FUNCTION import_nwobj_single(BIGINT, integer, BIGINT, boolean)
-  RETURNS void AS
+	RETURNS void
+	LANGUAGE 'plpgsql' VOLATILE
+	AS
 $BODY$
 DECLARE
     i_control_id	ALIAS FOR $1;
@@ -115,6 +114,7 @@ DECLARE
 	i_change_type INTEGER;
 	i_new_obj_id  BIGINT;	-- id des neu eingefügten object
 	v_comment	VARCHAR;
+	ip_range    RECORD;
 BEGIN
     b_insert := FALSE;
     b_change := FALSE;
@@ -124,6 +124,7 @@ BEGIN
     IF NOT (to_import.obj_zone IS NULL) THEN  -- wenn Zone-Info vorhanden (i.e. Netscreen-Object)
 	    SELECT INTO z zone_id FROM zone WHERE zone_name = to_import.obj_zone AND mgm_id = i_mgm_id; -- ZoneID holen
 	    IF NOT FOUND THEN -- TODO: das muss noch automatisiert werden: Neuanlegen einer Zone
+			-- PERFORM add_data_issue(i_control_id, to_import.obj_zone, to_import.obj_zone, NULL, NULL, 'zone object', 'undefined zone obj in network object', NULL);
        		PERFORM error_handling('ERR_ZONE_MISS', to_import.obj_zone);
 	    END IF;
 	    zoneID := z.zone_id; -- zoneID fuer spaeteres INSERT zwischenspeichern
@@ -132,6 +133,7 @@ BEGIN
 	RAISE DEBUG 'processing import_nwobj_single 2';
     SELECT INTO i_typ obj_typ_id FROM stm_obj_typ WHERE obj_typ_name = to_import.obj_typ; -- obj_typ_id holen (network,host,...)
     IF NOT FOUND THEN -- TODO: das muss noch automatisiert werden: Neuanlegen eines obj_typ
+       -- PERFORM add_data_issue(i_control_id, to_import.obj_typ, to_import.obj_typ, NULL, NULL, NULL, 'nw obj typ', 'undefined nw obj type in network object: ' || to_import.obj_typ, NULL);
        PERFORM error_handling('ERR_OBJTYP_MISS', to_import.obj_typ);
     END IF;
     -- color_id holen (normalisiert ohne SPACES und in Kleinbuchstaben)
@@ -140,19 +142,28 @@ BEGIN
 	RAISE DEBUG 'processing import_nwobj_single 4';
     IF NOT FOUND THEN -- TODO: Fehlerbehandlung bzw. automat. Neuanlegen einer Farbe?
 		i_farbe := NULL;
---       PERFORM error_handling('ERR_COLOR_MISS', to_import.obj_color);
+		-- IF to_import.obj_color IS NOT NULL THEN
+        -- 	-- PERFORM add_data_issue(i_control_id, to_import.obj_color, NULL, NULL, NULL, NULL, 'nw obj color', 'undefined color in network object: ' || to_import.obj_color, NULL);
+		-- END IF;
     END IF;
     -- finde Objekt mit gleichem namen, zone_id und Management
 	IF (to_import.obj_uid IS NULL OR char_length(to_import.obj_uid) = 0) THEN -- nur der Weg ueber den Namen als ID geht
 	    SELECT INTO existing_obj * FROM object
 		WHERE (obj_name=to_import.obj_name AND mgm_id=i_mgm_id AND (zone_id=zoneID OR (zone_id IS NULL AND zoneID IS NULL)) AND active);
-		-- in diesem Fall muessten alle devices des betroffenen Mgmts neu eingelesen werden,
-		-- falls eine Umbenennung stattfand!!!
+		-- in diesem Fall muessten alle devices des betroffenen Mgmts neu eingelesen werden, falls eine Umbenennung stattfand
 	ELSE  -- obj_uid ist nicht leer: nehme dieses Feld als ID-Anteil anstatt Namen: erschlaegt Umbenennungen
 	    SELECT INTO existing_obj * FROM object
 		WHERE (obj_uid=to_import.obj_uid AND mgm_id=i_mgm_id AND (zone_id=zoneID OR (zone_id IS NULL AND zoneID IS NULL)) AND active);
 	END IF;
 	RAISE DEBUG 'processing import_nwobj_single 5';
+
+	-- make sure we are only dealing with ranges - starting from FWORCH v7.3
+	IF NOT is_single_ip(to_import.obj_ip) OR to_import.obj_ip_end IS NULL THEN
+		to_import.obj_ip_end := get_last_ip_of_cidr(to_import.obj_ip); -- order is important here: end before start, because of constraints
+		to_import.obj_ip := get_first_ip_of_cidr(to_import.obj_ip);
+	END IF;
+	-- assuming that if obj_ip_end is set, we already have a range
+
 	IF FOUND THEN  -- object schon vorhanden
 		IF (NOT ( 
 			are_equal(existing_obj.obj_uid, to_import.obj_uid) AND
@@ -188,6 +199,7 @@ BEGIN
 	IF (b_change OR b_insert) THEN
 		PERFORM error_handling(v_change_id, to_import.obj_name);
 		i_admin_id := get_admin_id_from_name(to_import.last_change_admin);
+
 	    INSERT INTO object
     	   (mgm_id,obj_name,obj_ip,obj_ip_end,zone_id,obj_typ_id,obj_comment,obj_member_names,obj_member_refs,obj_location,
     	   	obj_color_id,obj_uid,last_change_admin,obj_last_seen,obj_create)
@@ -226,6 +238,42 @@ BEGIN
 	END IF;
     RETURN;
 END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION get_first_ip_of_cidr (ip CIDR)
+	RETURNS CIDR
+	LANGUAGE 'plpgsql' IMMUTABLE COST 1
+	AS
 $BODY$
-  LANGUAGE 'plpgsql' VOLATILE
-  COST 100;
+	BEGIN
+		IF is_single_ip(ip) THEN
+			RETURN ip;
+		ELSE
+			RETURN host(abbrev(ip)::cidr);
+		END IF;
+	END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION get_last_ip_of_cidr (ip CIDR)
+	RETURNS CIDR
+	LANGUAGE 'plpgsql' IMMUTABLE COST 1
+	AS
+$BODY$
+	BEGIN
+		IF is_single_ip(ip) THEN
+			RETURN ip;
+		ELSE
+			RETURN inet(host(broadcast(ip)));
+		END IF;
+	END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION is_single_ip (ip CIDR)
+	RETURNS BOOLEAN
+	LANGUAGE 'plpgsql' IMMUTABLE COST 1
+	AS
+$BODY$
+	BEGIN
+		RETURN masklen(ip)=32 AND family(ip)=4 OR masklen(ip)=128 AND family(ip)=6;
+	END;
+$BODY$;

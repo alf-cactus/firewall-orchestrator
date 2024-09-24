@@ -1,10 +1,9 @@
-﻿using System;
-
-namespace FWO.Report.Filter
+﻿namespace FWO.Report.Filter
 {
     public enum TokenKind
     {
         Value,
+        Owner,
         Disabled,
         SourceNegated,
         DestinationNegated,
@@ -17,17 +16,22 @@ namespace FWO.Report.Filter
         Action,
         Management,
         Gateway,
-        Time,
-        ReportType,
         Remove,
+        ReportType,
+        Time,
         RecertDisplay,
         FullText,
+        LastHit,
+        Unused,
         BL, // (
         BR, // )
         And,
         Or,
         Not,
+        EEQ, // Exact equals
         EQ, // ==
-        NEQ // !=
+        NEQ, // !=
+        LSS, // <
+        GRT, // >
     }
 }

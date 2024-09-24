@@ -1,37 +1,17 @@
 ---
-# installation options: see docs at https://github.com/CactuseSecurity/firewall-orchestrator/blob/master/documentation/installer/install-advanced.md
-
-- hosts: importers
-  tasks:
-    - name: stop importer service before making any changes
-      systemd:
-        name: "{{ product_name }}-importer"
-        state: stopped
-      become: yes
-      when: "not installation_mode == 'new'"
-      ignore_errors: yes
-  tags:
-    - frontend
-    - importer
-
-- hosts: all
-  tasks:
-    - name: uninstall product
-      import_tasks: scripts/uninstall-fworch.yml
-      when: "installation_mode == 'uninstall'"
-      become: yes
-  tags:
-    - backend
-    - frontend
+# for installation options see https://github.com/CactuseSecurity/firewall-orchestrator/blob/master/documentation/installer/install-advanced.md
 
 - hosts: all
   roles:
-    - { role: common, when: "not installation_mode == 'uninstall'" }
-
+    - { role: common }
   tags:
     - backend
+    - frontend
+    - importer
+    - ui
+    - api
 
-- hosts: backendserver
+- hosts: databaseserver
   roles:
     - { role: database, when: "not installation_mode == 'uninstall'" }
   tags:
@@ -49,31 +29,42 @@
 - hosts: apiserver
   roles:
     - { role: docker, when: "not installation_mode == 'uninstall'" }
+  tags:
+    - backend
+    - api
+
+# do not put this into the same play as docker (handler needs to run inbetween!)
+- hosts: apiserver 
+  roles:
     - { role: api, when: "not installation_mode == 'uninstall'" }
   tags:
     - backend
-
-# restart middlewareserver now that the API is ready.
-- hosts: middlewareserver
-  tasks:
-    - name: restart middleware service
-      systemd:
-        name: "{{ middleware_service_name }}"
-        state: restarted
-      become: yes
-      when: "not installation_mode == 'uninstall'"
-  tags:
-    - backend
-    - csharp
+    - api
 
 - hosts: frontends
   roles:
-    # do not install lib role twice (for non distributed install, already installed for middlewareserver)
-    - { role: lib, when: "'middlewareserver' not in group_names and not installation_mode == 'uninstall'"}
+    - { role: lib, when: "not installation_mode == 'uninstall'"}
     - { role: ui, when: "not installation_mode == 'uninstall'"}
   tags:
     - frontend
     - csharp
+    - ui
+
+- hosts: sampleserver
+  roles:
+    - { role: sample-data, when: "add_demo_data|bool and not installation_mode == 'uninstall'" }
+  tags:
+    - samples
+    - backend
+    - importer
+
+- hosts: middlewareserver
+  roles:
+    - { role: sample-auth-data, when: "add_demo_data|bool and not installation_mode == 'uninstall'" }
+  tags:
+    - samples
+    - backend
+  # todo: add a meta dependency on role sample-data
 
 - hosts: importers
   roles:
@@ -82,81 +73,53 @@
     - frontend
     - importer
 
-- hosts: sampleserver
-  roles:
-    - { role: sample-data, when: "not without_sample_data|bool and not installation_mode == 'uninstall'" }
-    - { role: sample-data-connect-sting, when: "connect_sting is defined and not installation_mode == 'uninstall'" }
-  tags:
-    - samples
-    - backend
-    - importer
-
-- hosts: middlewareserver
-  roles:
-    - { role: sample-auth-data, when: "not without_sample_data|bool and not installation_mode == 'uninstall'" }
-  tags:
-    - samples
-    - backend
-  # todo: add a meta dependency on role sample-data
-
-- hosts: importers
-  tasks:
-    - name: restart importer service to make sure it works correctly with sample data
-      ansible.builtin.systemd:
-        name: "{{ product_name }}-importer"
-        state: restarted
-      become: yes
-      when: "not installation_mode == 'uninstall'"
-  tags:
-    - frontend
-    - importer
-
-- hosts: all
-  roles:
-    - { role: upgrade-completion, when: "installation_mode == 'upgrade'" }
-  tags:
-    - backend
-    - frontend
-    - importer
-
 - hosts: frontends
   tasks:
     - name: restart ui service to display new version
-      service: 
+      service:
         name: "{{ ui_service_name }}"
         state: restarted
-      become: yes
+      become: true
       when: "not installation_mode == 'uninstall'"
   tags:
     - frontend
+    - ui
 
 - hosts: testservers
   roles:
     - { role: webhook, when: install_webhook|bool and not installation_mode == 'uninstall' }
   tags:
     - test
-    
+
 - hosts: all
   roles:
-    - { role: test, when: "not installation_mode == 'uninstall'" }
+    - { role: finalize, when: "not installation_mode == 'uninstall'" }
+  tags:
+    - finalize
+    - backend
+    - frontend
+    - importer
+    - ui
+
+- hosts: all
+  roles:
+    - { role: test, when: not installation_mode == 'uninstall' }
   tags:
     - test
+    - quicktest
 
 - hosts: all
   tasks:
+    # display status & pwds
     - name: show listener status
       import_tasks: scripts/show-fworch-listeners.yml
-      become: yes
-  tags:
-    - backend
-    - frontend
+      become: true
 
-- hosts: backendserver
-  tasks:
     - name: display secrets for this installation
       debug:
         msg:
           - "Your initial UI admin password is '{{ admin_password }}'"
           - "Your api hasura admin secret is '{{ api_hasura_admin_secret }}'"
-      when: admin_password is defined and api_hasura_admin_secret is defined
- 
+      when: |
+        admin_password is defined and 
+        api_hasura_admin_secret is defined

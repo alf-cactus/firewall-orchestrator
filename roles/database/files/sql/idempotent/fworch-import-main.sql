@@ -1,15 +1,99 @@
--- $Id: iso-import-main.sql,v 1.1.2.12 2011-09-16 15:05:04 tim Exp $
--- $Source: /home/cvs/iso/package/install/database/Attic/iso-import-main.sql,v $
+/* 
+ data structure:
+	rule_<objtype>_resolved table for each object contained in a rule - used for quick reporting of objects used in a reported ruleset
+ 	
+	rule table:
+ 		rule.rule_from/to/svc/usr - textual overview of rule elements - filled directly from import_xxx tables without ref integrity checking
 
--- Function: public.import_all_main(BIGINT)
+	import_changelog table only used for audit log entries - currently not used at all - can be deleted or maybe used for recording ref integrity issues?
 
--- DROP FUNCTION public.import_all_main(BIGINT);
+	changelog_rule/svc/nwobj tables
+		record all changes - should also contain unreferenced changes?! then we can use these tables for reporting ref issues
 
-CREATE OR REPLACE FUNCTION public.import_all_main(BIGINT)
-  RETURNS boolean AS
+	new: log_data_issue for storing broken references etc. but not rolling back the import
+
+
+ (error handling) structure:
+
+	import_all_main(mgm_id) RETURNS boolean --> string with errors instead?
+	{
+		TRY:
+			all VOID returns: import_zone_main, import_nwobj_main, import_svc_main, import_usr_main
+			FOR all devices: 
+				IF import_rules() 
+					import_rules_set_rule_num_numeric 
+
+			if import_global_refhandler_main THEN raise returned exception error_string
+				-- here exception handling needs to be fixed
+			else 
+				if get_active_rules_with_broken_refs_per_mgm() <>'' THEN raise returned exception error_string
+					-- here exception handling already seems to be working
+
+			import_changelog_sync (mainly logging hitherto unnoticed deletes in import_change- tables)
+		CATCH:
+			enrich import_control.import_errors with errors from above
+	
+	--------- creating foreign key references for each element of a rule (and also object groups)
+		the _flat tables in addition contain all resolved group members (redundant information to speed up reporting)
+
+		import_global_refhandler_main: (exception handling not working)
+			import_nwobj_refhandler_main
+				import_nwobj_refhandler_insert
+					import_nwobj_refhandler_objgrp_add_group
+				import_nwobj_refhandler_change
+					import_nwobj_refhandler_change_objgrp_member_refs
+					import_nwobj_refhandler_objgrp_add_group
+				import_nwobj_refhandler_insert_flat
+					import_nwobj_refhandler_objgrp_flat_add_group
+				import_nwobj_refhandler_change_flat
+					import_nwobj_refhandler_change_objgrp_flat_member_refs
+					import_nwobj_refhandler_change_rule_from_refs
+					import_nwobj_refhandler_change_rule_to_refs	
+			
+			import_svc_refhandler_main (same sub functions as nwobj above)
+				...
+			import_usr_refhandler_main (same sub functions as nwobj above)
+				...
+
+			for each device:
+				import_rule_refhandler_main:
+					for each rule:
+						resolve_rule_list(rule_from):
+							for each rule-from element:
+								f_add_single_rule_from_element
+									import_rule_resolved_nwobj
+						resolve_rule_list(rule_to)
+							for each rule-to element:
+								f_add_single_rule_to_element
+									import_rule_resolved_nwobj
+						resolve_rule_list(rule_service)
+							for each rule-service element:
+								f_add_single_rule_svc_element
+									import_rule_resolved_svc
+
+	--------- Q&A the following code just checks for broken references and reports them
+	    broken refs can occur if the element is not the only element in a field?
+
+	get_active_rules_with_broken_refs_per_mgm: (exception handling working)
+		for each device:
+			get_active_rules_with_broken_refs_per_dev := 
+				get_active_rules_with_broken_src_refs_per_dev (v_delimiter, b_heal, i_dev_id) || 
+				get_active_rules_with_broken_dst_refs_per_dev (v_delimiter, b_heal, i_dev_id) ||
+				get_active_rules_with_broken_svc_refs_per_dev
+
+				the above functions check all refs 
+					if "healing mode" is set (not used during import), the missing refs are inserted into rule_from/rule_to/rule_svc
+					all broken refs are returned as a string
+	}  */
+
+DROP FUNCTION IF EXISTS public.import_all_main(BIGINT);
+DROP FUNCTION IF EXISTS public.import_all_main(BIGINT, BOOLEAN);
+CREATE OR REPLACE FUNCTION public.import_all_main(BIGINT, BOOLEAN)
+  RETURNS VARCHAR AS
 $BODY$
 DECLARE
-	i_current_import_id ALIAS FOR $1; -- ID des aktiven Imports
+	i_current_import_id ALIAS FOR $1; -- ID of the current import
+	b_debug_mode ALIAS FOR $2; -- should we output debug info?
 	i_mgm_id INTEGER;
 	r_dev RECORD;
 	b_force_initial_import BOOLEAN;
@@ -20,9 +104,15 @@ DECLARE
 	v_err_str_refs VARCHAR;
 	b_result BOOLEAN;
 	r_obj RECORD;
-	
+	v_exception_message VARCHAR;
+	v_exception_details VARCHAR;
+	v_exception_hint VARCHAR;
+	v_exception VARCHAR;
+	t_import_start TIMESTAMP;
+	t_last_measured_timestamp TIMESTAMP;	
 BEGIN
 	BEGIN -- catch exception block
+		t_import_start := now();
 		v_err_pos := 'start';
 		SELECT INTO i_mgm_id mgm_id FROM import_control WHERE control_id=i_current_import_id;
 		SELECT INTO b_is_initial_import is_initial_import FROM import_control WHERE control_id=i_current_import_id;
@@ -30,56 +120,38 @@ BEGIN
 			SELECT INTO b_force_initial_import force_initial_import FROM management WHERE mgm_id=i_mgm_id;
 			IF b_force_initial_import THEN b_is_initial_import := TRUE; END IF;
 		END IF;
-	
-		-- Basiselemente importieren
+
+		-- import base objects
 		v_err_pos := 'import_zone_main';
 		PERFORM import_zone_main	(i_current_import_id, b_is_initial_import);
 		v_err_pos := 'import_nwobj_main';
 		PERFORM import_nwobj_main	(i_current_import_id, b_is_initial_import);	
-		RAISE DEBUG 'after nwobj_import';
-/*
-		RAISE NOTICE 'listing all objects so far';
-		FOR r_obj IN
-			SELECT * FROM object WHERE obj_last_seen=i_current_import_id
-		LOOP
-			RAISE NOTICE 'obj %', r_obj.obj_name;
-		END LOOP;
-*/
-		
 		v_err_pos := 'import_svc_main';
 		PERFORM import_svc_main		(i_current_import_id, b_is_initial_import);
-		RAISE  DEBUG 'after svc_import';
-/*
-		RAISE NOTICE 'listing all svc objects so far';
-		FOR r_obj IN
-			SELECT * FROM service WHERE svc_last_seen=i_current_import_id
-		LOOP
-			RAISE NOTICE 'svc %', r_obj.svc_name;
-			RAISE NOTICE 'uid %', r_obj.svc_uid;
-		END LOOP;
-*/
 		v_err_pos := 'import_usr_main';
 		PERFORM import_usr_main		(i_current_import_id, b_is_initial_import);
 		RAISE  DEBUG 'after usr_import';
 		v_err_pos := 'rulebase_import_start';
-	
-		-- Regelwerke importieren
+
+		t_last_measured_timestamp := debug_show_time('import of base objects', t_import_start);	
+		-- import rulebases
 		FOR r_dev IN
 			SELECT * FROM device WHERE mgm_id=i_mgm_id AND NOT do_not_import
 		LOOP
 			SELECT INTO b_do_not_import do_not_import FROM device WHERE dev_id=r_dev.dev_id;
 			IF NOT b_do_not_import THEN		--	RAISE NOTICE 'importing %', r_dev.dev_name;
-				v_err_pos := 'import_rules of device ' || r_dev.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ')';
+				v_err_pos := 'import_rules of device ' || r_dev.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ') ';
 				IF (import_rules(r_dev.dev_id, i_current_import_id)) THEN  				-- returns true if rule order needs to be changed
 																						-- currently always returns true as each import needs a rule reordering
-					v_err_pos := 'import_rules_set_rule_num_numeric of device ' || r_dev.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ')';
-					-- PERFORM import_rules_save_order(i_current_import_id,r_dev.dev_id);  -- todo: to be removed
+					v_err_pos := 'import_rules_set_rule_num_numeric of device ' || r_dev.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ') ';
 					-- in case of any changes - adjust rule_num values in rulebase
 					PERFORM import_rules_set_rule_num_numeric (i_current_import_id,r_dev.dev_id);
 				END IF;
 			END IF;
 		END LOOP;
-		
+
+		t_last_measured_timestamp := debug_show_time('import of rules', t_last_measured_timestamp);	
+
 		v_err_pos := 'ImpGlobRef';
 		SELECT INTO b_result * FROM import_global_refhandler_main(i_current_import_id);
 		IF NOT b_result THEN --  alle Referenzen aendern (basiert nur auf Eintraegen in changelog_xxx	
@@ -91,33 +163,57 @@ BEGIN
 			SELECT INTO v_err_str_refs * FROM get_active_rules_with_broken_refs_per_mgm ('|', FALSE, i_mgm_id);
 			IF NOT are_equal(v_err_str_refs, '') THEN
 				RAISE EXCEPTION 'error in get_active_rules_with_broken_refs_per_mgm: %', v_err_str_refs;
+--				RAISE NOTICE 'found broken references in get_active_rules_with_broken_refs_per_mgm: %', v_err_str_refs;
 			END IF;
 		END IF;
 		IF b_force_initial_import THEN UPDATE management SET force_initial_import=FALSE WHERE mgm_id=i_mgm_id; END IF; 	-- evtl. gesetztes management.force_initial_import-Flag loeschen	
 		v_err_pos := 'import_changelog_sync';
 		PERFORM import_changelog_sync (i_current_import_id, i_mgm_id); -- Abgleich zwischen import_changelog und changelog_xxx	
+		v_err_pos := 'recert_refresh_per_management';
+		-- LargeOwnerChange: comment out the following line
+		-- PERFORM recert_refresh_per_management (i_mgm_id);
 	EXCEPTION
-		WHEN OTHERS THEN
+		WHEN OTHERS THEN -- read error from import_control and rollback
+			GET STACKED DIAGNOSTICS v_exception_message = MESSAGE_TEXT,
+                          v_exception_details = PG_EXCEPTION_DETAIL,
+                          v_exception_hint = PG_EXCEPTION_HINT;
+			v_exception := v_exception_message || v_exception_details || v_exception_hint;
 			v_err_pos := 'ERR-ImpMain@' || v_err_pos;
 			RAISE DEBUG 'import_all_main - Exception block entered with v_err_pos=%', v_err_pos;
 			SELECT INTO v_err_str import_errors FROM import_control WHERE control_id=i_current_import_id;
 			IF v_err_str IS NULL THEN
-				UPDATE import_control SET import_errors = v_err_pos WHERE control_id=i_current_import_id;
+				UPDATE import_control SET import_errors = v_err_pos || v_exception WHERE control_id=i_current_import_id;
 			ELSE 
-				UPDATE import_control SET import_errors = v_err_str || v_err_pos WHERE control_id=i_current_import_id;				
+				UPDATE import_control SET import_errors = v_err_str || v_err_pos || v_exception WHERE control_id=i_current_import_id;				
 			END IF;
 			IF NOT v_err_str_refs IS NULL THEN
 				SELECT INTO v_err_str import_errors FROM import_control WHERE control_id=i_current_import_id;
 				UPDATE import_control SET import_errors = v_err_str || ';' || v_err_str_refs WHERE control_id=i_current_import_id;
 			END IF;
-			RETURN FALSE;
+			RAISE NOTICE 'ERROR: import_all_main failed';
+			RETURN v_err_str;
+			-- RETURN FALSE;
 	END;
-	RETURN TRUE;
+	RETURN '';
 END;
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION public.import_all_main(BIGINT) OWNER TO fworch;
+  LANGUAGE plpgsql VOLATILE;
+ALTER FUNCTION public.import_all_main(BIGINT, BOOLEAN) OWNER TO fworch;
+
+
+CREATE OR REPLACE FUNCTION debug_show_time (VARCHAR, TIMESTAMP)
+    RETURNS TIMESTAMP
+    AS $BODY$
+DECLARE
+	v_event ALIAS FOR $1; -- description of the processed time
+	t_import_start ALIAS FOR $2; -- start time of the import
+BEGIN
+    RAISE NOTICE '% duration: %s', v_event, CAST(now()- t_import_start AS VARCHAR);
+    RETURN now();
+END;
+$BODY$
+LANGUAGE plpgsql
+STABLE;
 
 ----------------------------------------------------
 -- FUNCTION:  import_global_refhandler_main
@@ -138,46 +234,38 @@ DECLARE
 	v_err_pos VARCHAR;
 	v_err_str VARCHAR;
 BEGIN
-	BEGIN -- exception
-		-- zunaechst fuer die Management-weiten Tabellen die Referenzen nachziehen
+	-- BEGIN -- exception block
+		-- adjust references for objects for current management
 		v_err_pos := 'import_nwobj_refhandler_main';
-		RAISE DEBUG 'import_global_refhandler_main - starting ...';
 		PERFORM import_nwobj_refhandler_main(i_current_import_id);
-		RAISE DEBUG 'import_global_refhandler_main - after nwobj-refhandler';
 		v_err_pos := 'import_svc_refhandler_main';
 		PERFORM import_svc_refhandler_main(i_current_import_id);
-		RAISE DEBUG 'import_global_refhandler_main - after svc-refhandler';
 		v_err_pos := 'import_usr_refhandler_main';
 		PERFORM import_usr_refhandler_main(i_current_import_id);
-		RAISE DEBUG 'import_global_refhandler_main - after usr-refhandler';
 		
-		-- jetzt fuer alle Devices, die vom aktuell importierten Management abhaengen, die Referenzen nachziehen
+		-- adjust rule references or all devices of the current management
 		SELECT INTO i_mgm_id mgm_id FROM import_control WHERE control_id=i_current_import_id;
 		FOR r_device IN
 			SELECT * FROM device WHERE mgm_id=i_mgm_id
 		LOOP 
 			SELECT INTO b_do_not_import do_not_import FROM device WHERE dev_id=r_device.dev_id;
 			IF NOT b_do_not_import THEN
-				RAISE DEBUG 'updating references for rule set of device %', r_device.dev_name;
-				v_err_pos := 'import_rule_refhandler_main of device ' || r_device.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ')';
+				v_err_pos := 'import_rule_refhandler_main of device ' || r_device.dev_name || ' (Management: ' || CAST (i_mgm_id AS VARCHAR) || ') ';
 				PERFORM import_rule_refhandler_main(i_current_import_id, r_device.dev_id);
 			END IF;
 		END LOOP;
-		RAISE DEBUG 'import_global_refhandler_main - after rule ref handling: finished';
---		v_err_pos := 'import_verify_all_references';
---		PERFORM import_verify_all_references(i_current_import_id, i_mgm_id);
-	EXCEPTION
-		WHEN OTHERS THEN
-			v_err_pos := 'ERR-ImpGlobRef@' || v_err_pos;
-			RAISE NOTICE 'referr %', v_err_pos;
-			SELECT INTO v_err_str import_errors FROM import_control WHERE control_id=i_current_import_id;
-			IF v_err_str IS NULL THEN
-				UPDATE import_control SET import_errors = v_err_pos WHERE control_id=i_current_import_id;
-			ELSE 
-				UPDATE import_control SET import_errors = v_err_str || v_err_pos WHERE control_id=i_current_import_id;				
-			END IF;
-			RETURN FALSE;
-	END;
+	-- EXCEPTION
+	-- 	WHEN OTHERS THEN
+	-- 		v_err_pos := 'ERR-ImpGlobRef@' || v_err_pos;
+	-- 		RAISE NOTICE 'referr %', v_err_pos;
+	-- 		-- SELECT INTO v_err_str import_errors FROM import_control WHERE control_id=i_current_import_id;
+	-- 		-- IF v_err_str IS NULL THEN
+	-- 		-- 	UPDATE import_control SET import_errors = v_err_pos WHERE control_id=i_current_import_id;
+	-- 		-- ELSE 
+	-- 		-- 	UPDATE import_control SET import_errors = v_err_str || v_err_pos WHERE control_id=i_current_import_id;				
+	-- 		-- END IF;
+	-- 		-- RETURN FALSE;
+	-- END;
 	RETURN TRUE;
 END; 
 $$ LANGUAGE plpgsql;
@@ -210,8 +298,6 @@ fworchdb=# select * from view_changes;
            457 |               8 |                     | rule           | rule_element         |      7 |        | f                 |              3 | D           |                |             | 2007-09-25 11:42:45.101601 | fw1      |    444 | fw1      |    444 |              |                 |            |               | t                 | Standard__uid__8ED0AE3D-F6E5-485A-81D8-C22D21410491, Rulebase: Standard |              | 
            458 |              13 |                     | object         | basic_element        |      2 |        | f                 |              3 | D           |                |             | 2007-09-25 11:45:45.972244 | fw1      |    444 |          |        |              |                 |            |               | t                 | test1-inserted                                                          |              | 
 (9 Zeilen)
-
-
 */
 
 CREATE OR REPLACE FUNCTION import_changelog_sync (BIGINT, INTEGER) RETURNS VOID AS $$
@@ -270,18 +356,3 @@ BEGIN
 	RETURN;
 END;
 $$ LANGUAGE plpgsql;
-
--- CREATE OR REPLACE FUNCTION create_rule_dev_initial_entry_all () RETURNS VOID AS $$
--- DECLARE
---     r_rule RECORD;
---     r_dev RECORD;
--- BEGIN
--- 	FOR r_dev IN SELECT * FROM device
--- 	LOOP
--- 		RAISE DEBUG 'fixing rules of device %', r_dev.dev_name || ' (id=' || r_dev.dev_id ||')';
--- 		FOR r_rule IN SELECT rule_id,dev_id FROM rule_order WHERE dev_id=r_dev.dev_id GROUP BY rule_id,dev_id 
--- 		LOOP UPDATE rule SET dev_id = r_rule.dev_id WHERE rule_id=r_rule.rule_id; END LOOP;
--- 	END LOOP;
--- 	RETURN;
--- END; 
--- $$ LANGUAGE plpgsql;

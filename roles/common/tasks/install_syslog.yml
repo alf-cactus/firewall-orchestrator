@@ -1,0 +1,174 @@
+
+- name: install package rsyslog
+  package:
+    name: "rsyslog"
+    state: present
+  become: true
+
+- name: create log dir for {{ product_name }} on ubuntu - owner syslog
+  file:
+    path: "{{ fworch_log_dir }}"
+    state: directory
+    owner: syslog
+    group: syslog
+    mode: "0775"
+  become: true
+  when: ansible_facts['distribution'] == "Ubuntu"
+    
+- name: create log dir for {{ product_name }} on debian - owner root
+  file:
+    path: "{{ fworch_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0775"
+  become: true
+  when: ansible_facts['distribution'] == "Debian"
+
+- name: change rsyslog config to receive logs
+  blockinfile:
+    path: /etc/rsyslog.conf
+    block: |
+      module(load="im{{ syslog_proto }}")
+      input(type="im{{ syslog_proto }}" port="{{ syslog_port }}")
+  become: true
+
+- name: create log dir for {{ product_name }} on redhat - owner root
+  file:
+    path: "{{ fworch_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0775"
+  when: ansible_facts['distribution'] == "RedHat"
+  become: true
+
+# - name: create db log file for {{ product_name }} - owner postgres
+#   file:
+#     path: "{{ fworch_log_dir }}/database.log"
+#     state: touch
+#     owner: postgres
+#     group: adm
+#     mode: "0640"
+#   become: true
+
+- name: edit rsyslog to include fworch file logging
+  blockinfile:
+    path: "/etc/rsyslog.d/30-{{ product_name }}.conf"
+    create: true
+    block: |
+      # syslog for {{ product_name }}; Log {{ product_name }} log messages to file
+
+      # change date format to ISO and contain timezone and remove process id
+      template(name="fworch" type="list") {
+        property(name="timereported" dateFormat="rfc3339")
+        constant(value=" ") property(name="hostname")
+        constant(value=" ") property(name="programname")
+        constant(value=": ")
+        property(name="msg" spifno1stsp="on")
+        property(name="msg" droplastlf="on")
+        constant(value="\n")
+      }
+
+      if $programname == '{{ product_name }}-database' then action(type="omfile" file="{{ fworch_log_dir }}/database.log" template="fworch")
+      if $programname == '{{ middleware_server_syslog_id }}' then action(type="omfile" file="{{ fworch_log_dir }}/middleware.log" template="fworch")
+      if $programname == '{{ ui_syslog_id }}' then action(type="omfile" file="{{ fworch_log_dir }}/ui.log" template="fworch")
+      if $programname == '{{ ldap_syslog_id }}' then action(type="omfile" file="{{ fworch_log_dir }}/ldap.log" template="fworch")
+      if $programname == '{{ product_name }}-api' then action(type="omfile" file="{{ fworch_log_dir }}/api.log" template="fworch")
+      if $programname startswith '{{ product_name }}-importer-legacy' then action(type="omfile" file="{{ fworch_log_dir }}/importer-legacy.log" template="fworch")
+      if $programname startswith '{{ product_name }}-importer-api' then action(type="omfile" file="{{ fworch_log_dir }}/importer-api.log" template="fworch")
+      if $programname startswith '{{ product_name }}' and $msg contains "Audit" then action(type="omfile" file="{{ fworch_log_dir }}/audit.log" template="fworch")
+      if $programname startswith '{{ product_name }}' and $msg contains "FWORCHAlert" then action(type="omfile" file="{{ fworch_log_dir }}/alert.log" template="fworch")
+      if $programname == '{{ product_name }}-webhook' then action(type="omfile" file="{{ fworch_log_dir }}/webhook.log" template="fworch")
+  become: true
+
+- name: edit logrotate
+  blockinfile:
+    path: "/etc/logrotate.d/{{ product_name }}"
+    create: true
+    block: |
+      {{ fworch_log_dir }}/middleware.log {
+          compress
+          maxage 7
+          rotate 99
+          maxsize 4096k
+          missingok
+          copytruncate
+          sharedscripts
+              prerotate
+                {{ fworch_home }}/scripts/acquire_lock.py {{ fworch_mw_lockfile }} >/dev/null 2>&1
+              endscript
+              postrotate
+                {{ fworch_home }}/scripts/release_lock.py {{ fworch_mw_lockfile }} >/dev/null 2>&1
+              endscript
+      }
+
+      {{ fworch_log_dir }}/ui.log {
+          compress
+          maxage 7
+          rotate 99
+          maxsize 4096k
+          missingok
+          copytruncate
+          sharedscripts
+              prerotate
+                {{ fworch_home }}/scripts/acquire_lock.py {{ fworch_ui_lockfile }} >/dev/null 2>&1
+              endscript
+              postrotate
+                {{ fworch_home }}/scripts/release_lock.py {{ fworch_ui_lockfile }} >/dev/null 2>&1
+              endscript
+      }
+
+      {{ fworch_log_dir }}/importer-legacy.log {
+          compress
+          maxage 7
+          rotate 99
+          maxsize 4096k
+          missingok
+          copytruncate
+          sharedscripts
+              prerotate
+                systemctl stop {{ product_name }}-importer-legacy.service >/dev/null 2>&1
+              endscript
+              postrotate
+                systemctl start {{ product_name }}-importer-legacy.service >/dev/null 2>&1
+              endscript
+      }
+
+      {{ fworch_log_dir }}/database.log 
+      {{ fworch_log_dir }}/ldap.log 
+      {{ fworch_log_dir }}/api.log 
+      {{ fworch_log_dir }}/importer-api.log {
+          compress
+          maxage 7
+          rotate 99
+          maxsize 4096k
+          missingok
+          copytruncate
+          sharedscripts
+              prerotate
+                {{ fworch_home }}/scripts/acquire_lock.py {{ fworch_api_importer_lockfile }} >/dev/null 2>&1
+              endscript
+              postrotate
+                {{ fworch_home }}/scripts/release_lock.py {{ fworch_api_importer_lockfile }} >/dev/null 2>&1
+              endscript
+      }
+      {{ fworch_log_dir }}/audit.log 
+      {{ fworch_log_dir }}/alert.log 
+      {{ fworch_log_dir }}/webhook.log 
+      {
+          compress
+          maxage 7
+          rotate 99
+          maxsize 4096k
+          missingok
+          copytruncate
+      }
+
+  become: true
+
+- name: reload rsyslog service
+  service:
+    name: "rsyslog"
+    state: restarted
+  become: true

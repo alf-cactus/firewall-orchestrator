@@ -1,0 +1,36 @@
+﻿@using FWO.Config.Api
+@using FWO.Api.Data
+
+@inject UserConfig userConfig
+
+<nav class="sidebar fixed sidebar-help shadow">
+    <div class="sidebar-help d-flex flex-row" style="left:0px;">
+        <div class="sidebar-help" style="width:250px; overflow-x:scroll;">
+            <ul class="me-auto">
+                <p></p>
+                <h5>@(userConfig.GetText("workflow"))</h5>
+                <a class="nav-link" href="/help/workflow/objects/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Tickets"></span> @(userConfig.GetText("objects"))
+                </a>
+                <a class="nav-link" href="/help/workflow/tasktypes/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Type"></span> @(userConfig.GetText("task_types"))
+                </a>
+                <a class="nav-link" href="/help/workflow/phases/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Phase"></span> @(userConfig.GetText("phases_roles"))
+                </a>
+                <a class="nav-link" href="/help/workflow/states/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.State"></span> @(userConfig.GetText("state_handling"))
+                </a>
+                <a class="nav-link" href="/help/workflow/actions/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Action"></span> @(userConfig.GetText("actions"))
+                </a>
+                <a class="nav-link" href="/help/workflow/checklist/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Check"></span> @(userConfig.GetText("checklist"))
+                </a>
+                <a class="nav-link" href="/help/workflow/examples/?lang=@($"{userConfig.GetUserLanguage()}")">
+                    <span class="@Icons.Example"></span> @(userConfig.GetText("examples"))
+                </a>
+            </ul>
+        </div>
+    </div>
+</nav>

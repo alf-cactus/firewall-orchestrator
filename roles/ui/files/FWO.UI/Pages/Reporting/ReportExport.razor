@@ -1,0 +1,214 @@
+﻿@using System.Text
+@using FWO.Report
+@using FWO.Config.Api
+@using WkHtmlToPdfDotNet
+@using System.Linq
+@using FWO.Report.Filter
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+
+<button type="button" class="btn btn-sm btn-dark" @onclick='() => { if (ReportToExport != null) { ShowExportDialog = true; reportExportFile = new ReportFile { Name = "Report", OwnerId = userConfig.User.DbId }; } else { 
+                                                      DisplayMessageInUi(null, userConfig.GetText("export_report"), userConfig.GetText("E1002"), true); } }'>@userConfig.GetText("export_report")</button>
+
+<PopUp Title="@(userConfig.GetText("export_report"))" Show="@ShowExportDialog" Size=PopupSize.Small OnClose="() => ShowExportDialog = false">
+    <Body>
+        <div>
+            <div class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <div class="input-group-text">@(userConfig.GetText("report_name")):</div>
+                </div>
+                <input class="form-control" @bind:event="oninput" @bind="reportExportFile.Name" />
+            </div>
+            <div class="card">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <div class="mb-1">@(userConfig.GetText("export_as"))</div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reportExportPdf" @bind="ExportPdf">
+                            <label class="form-check-label" for="reportExportPdf">
+                                PDF
+                            </label>
+                            @if (ExportPdf)
+                            {
+                                <div>
+                                    @(userConfig.GetText("page_format")):
+                                    <Dropdown @bind-SelectedElement="SelectedPaperKind" Elements="Enum.GetValues<PaperKind>().Cast<PaperKind>()"></Dropdown>
+                                    @if (SelectedPaperKind == PaperKind.Custom)
+                                    {
+                                        <div class="input-group input-group-sm mb-2 mt-2">
+                                          <div class="input-group-prepend">
+                                            <span class="input-group-text">@(userConfig.GetText("width"))</span>
+                                          </div>
+                                          <input  @bind="PaperSizeWidth" min="1" max="1000000" type="number" class="form-control">
+                                        </div>
+                                        <div class="input-group input-group-sm mb-1">
+                                          <div class="input-group-prepend">
+                                            <span class="input-group-text">@(userConfig.GetText("height"))</span>
+                                          </div>
+                                          <input @bind="PaperSizeHeight" min="1" max="1000000" type="number" class="form-control">
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reportExportHtml" @bind="ExportHtml">
+                            <label class="form-check-label" for="reportExportHtml">
+                                HTML
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            @if (csvAvailable())
+                            {
+                                <input class="form-check-input" type="checkbox" id="reportExportCsv" @bind="ExportCsv">
+                            }
+                            else 
+                            {
+                                ExportCsv = false;
+                                <input disabled class="form-check-input" type="checkbox" id="reportExportCsv">
+                            }
+                            <label class="form-check-label" for="reportExportCsv">
+                                CSV
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reportExportJson" @bind="ExportJson">
+                            <label class="form-check-label" for="reportExportJson">
+                                JSON
+                            </label>
+                        </div>
+                    </li>
+                    <li class="list-group-item">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reportExportArchive" @bind="ExportArchive">
+                            <label class="form-check-label" for="reportExportArchive">
+                                @(userConfig.GetText("archive")) @(userConfig.GetText("includes_json"))
+                            </label>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </Body>
+    <Footer>
+        @if (!Exporting) {
+            <button type="button" class="btn btn-sm btn-primary" @onclick="async () => { Exporting = true; await Export(); ShowExportDialog = false; ShowExportDownloadDialog = true; Exporting = false; }">@(userConfig.GetText("export"))</button>
+            <button type="button" class="btn btn-sm btn-secondary" @onclick="() => ShowExportDialog = false">@(userConfig.GetText("cancel"))</button>
+        }
+        else {
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Exporting...</span>
+            </div>
+        }
+    </Footer>
+</PopUp>
+
+<ReportDownloadPopUp Title="@(userConfig.GetText("export_report_download"))" ReportFile="reportExportFile"
+    Show="ShowExportDownloadDialog" ShowJson="ExportJson" OnClose="() => ShowExportDownloadDialog = false" />
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public ReportBase? ReportToExport { get; set; }
+
+    private bool ExportPdf = false;
+    private bool ExportJson = false;
+    private bool ExportHtml = false;
+    private bool ExportCsv = false;
+    private bool ExportArchive = false;
+    private ReportFile reportExportFile = new ReportFile();
+    private PaperKind SelectedPaperKind = PaperKind.A4;
+
+    private bool ShowExportDialog = false;
+    private bool ShowExportDownloadDialog = false;
+
+    private bool Exporting = false;
+
+    private int PaperSizeWidth = 0;
+    private int PaperSizeHeight = 0;
+
+    private bool csvAvailable()
+    {
+        return ReportToExport?.ReportType.IsResolvedReport() ?? false;
+    }
+
+    private async Task Export()
+    {
+        if (reportExportFile.Sanitize())
+        {
+            DisplayMessageInUi(null, userConfig.GetText("export_report"), userConfig.GetText("U0001"), true);
+        }
+        if (ReportToExport != null)
+        {
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    if (!ReportToExport.GotObjectsInReport)
+                    {
+                        await ReportToExport.GetObjectsInReport(int.MaxValue, apiConnection, _ => Task.CompletedTask);
+                    }
+
+                    if (ExportHtml)
+                    {
+                        reportExportFile.Html = ReportToExport.ExportToHtml();
+                    }
+
+                    if (ExportPdf)
+                    {
+                        try
+                        {
+                            reportExportFile.Pdf = Convert.ToBase64String(ReportToExport.ToPdf(SelectedPaperKind, PaperSizeWidth, PaperSizeHeight));                    
+                        }
+                        catch (KeyNotFoundException)
+                        {
+                            throw new Exception("This paper kind is currently not supported. Please choose another one or \"Custom\" for a custom size.");
+                        }
+                    }
+
+                    if (ExportCsv)
+                    {
+                        reportExportFile.Csv = ReportToExport.ExportToCsv();
+                    }
+
+                    // if archiving, json report has to be generated
+                    if (ExportJson || ExportArchive)
+                    {
+                        reportExportFile.Json = ReportToExport.ExportToJson();
+                    }
+
+                    if (ExportArchive)
+                    {
+                        var queryVariables = new
+                        {
+                            report_name = reportExportFile.Name,
+                            report_start_time = DateTime.Now, // TODO: Change to correct dates
+                            report_end_time = DateTime.Now,
+                            report_owner_id = reportExportFile.OwnerId,
+                            report_csv = reportExportFile.Csv,
+                            report_pdf = reportExportFile.Pdf,
+                            report_html = reportExportFile.Html,
+                            report_json = reportExportFile.Json,
+                            report_type = (int?)ReportToExport.ReportType,
+                            description = ReportToExport.SetDescription()
+                        };
+
+                        await apiConnection.SendQueryAsync<object>(ReportQueries.addGeneratedReport, queryVariables);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    DisplayMessageInUi(exception, userConfig.GetText("export_report"), "", true);
+                }
+            });
+        }
+        else
+        {
+            DisplayMessageInUi(null, userConfig.GetText("export_report"), userConfig.GetText("E1002"), true);
+        }
+    }
+}

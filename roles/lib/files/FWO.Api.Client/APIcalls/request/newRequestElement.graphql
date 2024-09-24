@@ -1,0 +1,33 @@
+mutation newRequestElement(
+  $requestAction: action_enum
+  $taskId: bigint!
+  $ip: cidr
+  $port: Int
+  $proto: Int
+  $networkObjId: bigint
+  $serviceId: bigint
+  $field: rule_field_enum!
+  $userId: bigint
+  $originalNatId: bigint
+  $deviceId: Int
+  $ruleUid: String
+  ) {
+  insert_request_reqelement(objects: {
+    request_action: $requestAction
+    task_id: $taskId
+    ip: $ip
+    port: $port
+    ip_proto_id: $proto
+    network_object_id: $networkObjId
+    service_id: $serviceId
+    field: $field
+    user_id: $userId
+    original_nat_id: $originalNatId
+    device_id: $deviceId
+    rule_uid: $ruleUid
+  }) {
+    returning {
+      newId: id
+    }
+  }
+}

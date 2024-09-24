@@ -10,23 +10,21 @@ openldap_readonly_user_name: "inspector"
 openldap_readonly_user_dn: "uid={{ openldap_readonly_user_name }},ou=systemuser,ou=user,{{ openldap_path }}"
 openldap_writer_name: "ldapwriter"
 openldap_writer_dn: "cn={{ openldap_writer_name }},ou=systemuser,ou=user,{{ openldap_path }}"
-openldap_generate_new_crypto: no
 openldap_server_domain_name: "{{ product_name }}.internal"
-openldap_secrets_path: "{{ fworch_home }}/etc/secrets"
 
 middleware_path_rel: FWO.Middleware.Server
 middleware_server_base_dir: "{{ fworch_home }}/middleware/files"
 middleware_server_start_dir: "{{ middleware_server_base_dir }}/FWO.Middleware.Server"
-middleware_change_local_ldap: "yes"
+middleware_ldif_dir: "{{ fworch_home }}/etc/ldif"
 
-# use static jwt generation test key if set to 1 - only for testing, not for production environment
+importer_password: not4production
+apache_mw_timeout: 14400
+
+# sample-auth-data vars
+sample_role_purpose: demo
+sample_user1_pw: cactus1
+sample_user2_pw: cactus2
+
+# use static jwt generation test key if set to yes
+# only for testing, not for production environment
 testkeys: no
-
-########## test data only ##############
-
-test_ldap_external_ad_server: 192.168.100.8
-test_ldap_external_ad_user_search_path: "DC=int,DC=cactus,DC=de"
-test_ldap_external_ad_user_fq_name: "ad-readonly@int.cactus.de"
-test_ldap_external_ad_user_pwd: "fworch.123!"
-test_ldap_external_ad_tls: false
-test_ldap_external_ad_port: 389

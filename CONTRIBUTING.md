@@ -19,7 +19,7 @@ can quickly merge or address your contributions will increase.
 
 [6. Commit messages ](#commit-messages)
 
-[7. Translations ](#translations)
+[7. Coding Guidelines ](#coding-guidelines)
 
 <a name="code-of-conduct"></a>
 
@@ -30,10 +30,6 @@ Please follow our [Code of conduct](code-of-conduct.md) in the context of any co
 <a name="overview"></a>
 
 ## 2. Repo overview
-
-[Firewall Orchestrator](https://github.com/CactuseSecurity/firewall-orchestrator) has the following contributing guides:
-
-For all contributions, a CLA (Contributor License Agreement) needs to be signed [here](https://cla-assistant.io/CactuseSecurity/firewall-orchestrator) before (or after) the pull request has been submitted. A bot will prompt contributors to sign the CLA via a pull request comment, if necessary.
 
 <a name="first-timers"></a>
 
@@ -88,7 +84,7 @@ Our goal is to keep our Firewall Orchestrator stable and secure. If you would li
 
 - If you're working on an issue, please comment that you are doing so to prevent duplicate work by others also.
 
-- Squash your commits and refer to the issue using `fix #<issue-no>` or `close #<issue-no>` in the commit message, at the end.
+- Refer to an issue using `fix #<issue-no>` or `close #<issue-no>` in the commit message, at the end.
   For example: `resolve answers to everything (fix #42)` or `resolve answers to everything, fix #42`
 
 - Rebase master with your branch before submitting a pull request.
@@ -111,3 +107,8 @@ Our goal is to keep our Firewall Orchestrator stable and secure. If you would li
 
 (Credits: Some sections are adapted from https://github.com/PostgREST/postgrest/blob/master/.github/CONTRIBUTING.md and
  https://github.com/hasura/graphql-engine/blob/master/CONTRIBUTING.md)
+
+
+## 7. Coding Guidelines
+
+Whenever contributing code, please adhere to our [Coding Guidelines](CODING_GUIDELINES.md)

@@ -7,34 +7,31 @@
     connect_timeout: 1
     delay: 10
     timeout: 25
-  when: "not run_on_github|bool"
 
-# curl --request POST --url http://127.0.0.1:8888/AuthenticateUser/ --header 'content-type: application/json' --data '{"Username":"user1_demo","Password":"cactus1"}'
-# Todo: Produces error invalid credentials, api is inactive (with command above)
 - name: middleware test get jwt valid creds
   uri:
-    url: https://{{ middleware_hostname }}:{{ middleware_web_listener_port }}/AuthenticateUser/
+    url: https://{{ middleware_hostname }}:{{ middleware_web_listener_port }}/api/AuthenticationToken/Get/
     method: POST
     headers:
       Content-Type: application/json
     body:
-      Username: user1_demo
-      Password: cactus1
+      Username: user1{{ test_postfix }}
+      Password: "{{ test_user1_pw }}"
     body_format: json
     validate_certs: false
-    return_content: yes
+    return_content: true
   register: sample_jwt
   changed_when: false
-  environment: "{{ proxy_env }}"
+#  environment: "{{ proxy_env }}"
 
 - debug: var=sample_jwt
 
-- set_fact: jwt_header="{{sample_jwt.content.split('.')[0].split(':')[1].split('\"')[1]}}"
+- set_fact: jwt_header="{{sample_jwt.content.split('.')[0]}}"
 
 - debug: var=jwt_header
 
 ## adding potentially missing base64 "=" padding to header:
-- set_fact: jwt_header="{{ jwt_header }}=" cacheable=yes
+- set_fact: jwt_header="{{ jwt_header }}=" cacheable=true
   when: "jwt_header|length % 4 > 0"
   loop:
     - 1
@@ -58,7 +55,7 @@
 - name: show jwt encoded payload pre padding
   debug: var=jwt_encoded_payload
 ## adding potentially missing base64 = padding to payload:
-- set_fact: jwt_encoded_payload="{{ jwt_encoded_payload }}=" cacheable=yes
+- set_fact: jwt_encoded_payload="{{ jwt_encoded_payload }}=" cacheable=true
   when: "jwt_encoded_payload|length % 4 > 0"
   loop:
     - 1
@@ -79,26 +76,26 @@
 - set_fact: jwt_unique_user_name="{{ jwt_payload.name }}"
   when: "'name' in jwt_payload"
 
-- name: middleware get jwt check valid creds output user user1_demo
+- name: Verify JWT Middleware and Check Valid Credentials, Output User 'user1_test'
   debug:
-    msg: "ERROR unexpected jwt test result (username does not match 'user1_demo'): {{ jwt_unique_user_name }}"
-  when: "jwt_unique_user_name is not match('user1_demo')"
+    msg: "ERROR: Unexpected JWT test result (username does not match 'user1{{ test_postfix }}'): {{ jwt_unique_user_name }}"
+  when: "jwt_unique_user_name != 'user1' ~ test_postfix"
 
 - name: middleware test get jwt wrong creds
   uri:
-    url: https://{{ middleware_hostname }}:{{ middleware_web_listener_port }}/AuthenticateUser/
+    url: https://{{ middleware_hostname }}:{{ middleware_web_listener_port }}/api/AuthenticationToken/Get/
     method: POST
     headers:
       Content-Type: application/json
     body:
-      Username: user1_demo
+      Username: user1{{ test_postfix }}
       Password: wrong-pwd
     body_format: json
     validate_certs: false
-    return_content: yes
+    return_content: true
   register: sample_jwt
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
 
 - debug:
     var: sample_jwt

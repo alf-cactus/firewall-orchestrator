@@ -25,11 +25,10 @@ our %EXPORT_TAGS = (
         $output_method $dbdriver
         $echo_bin $chmod_bin $scp_bin $ssh_bin $scp_batch_mode_switch $ssh_client_screenos
         $fworch_database $fworch_srv_host $fworch_srv_user $fworch_srv_user $fworch_srv_port $fworch_srv_pw $psql_exe $psql_params
-        &get_client_id_for_user_via_ldap
         &get_client_filter &get_device_ids_for_mgm
         &eval_boolean_sql &exec_pgsql_file &exec_pgsql_cmd &exec_pgsql_cmd_no_result
         &exec_pgsql_cmd_return_value &exec_pgsql_cmd_return_array_ref &exec_pgsql_cmd_return_table_ref
-        &copy_file_to_db &read_user_client_classification_from_ldap &get_rulebase_names &get_ruleset_name_list &evaluate_parameters &replace_import_id_in_csv
+        &copy_file_to_db &get_rulebase_names &get_ruleset_name_list &get_local_ruleset_name_list &get_global_ruleset_name_list &evaluate_parameters &replace_import_id_in_csv
     ) ]);
 
 our @EXPORT = (@{$EXPORT_TAGS{'basic'}});
@@ -58,13 +57,8 @@ our $csv_user_delimiter = &CACTUS::read_config::read_config("csv_user_delimiter"
 our $fworch_srv_user = &CACTUS::read_config::read_config("fworch_srv_user");
 our $psql_exe = &CACTUS::read_config::read_config("psql_exe");
 our $psql_params = &CACTUS::read_config::read_config("psql_params");
-our $LDAP_enabled = &CACTUS::read_config::read_config("LDAP_enabled");
-our $LDAP_c = &CACTUS::read_config::read_config("LDAP_c");
-our $LDAP_o = &CACTUS::read_config::read_config("LDAP_o");
-our $LDAP_server = &CACTUS::read_config::read_config("LDAP_server");
 our $dbdriver = "Pg";
-#our $ssh_id_basename = 'id_dsa';
-our $ssh_id_basename = 'id_rsa';
+our $ssh_id_basename = 'import_user_secret';
 
 ############################################################
 # getnum
@@ -486,7 +480,7 @@ sub remove_literal_carriage_return {
 ############################################################
 # replace_special_chars_in_string(string)
 # ersetzt in string alle Sonderzeichen durch Standard ASCII-Zeichen
-# hier fehlt noch ein Mechanismus, der gefundene Ersetzungen protokolliert (idealerweise in der DB in error_log)
+# hier fehlt noch ein Mechanismus, der gefundene Ersetzungen protokolliert
 ############################################################
 sub replace_special_chars_in_str {
     my $str = $_[0];
@@ -533,32 +527,6 @@ sub replace_special_chars {
         print $output $line;
     }
     $output->close;
-}
-
-############################################################
-# get_client_id_for_user_via_ldap 
-# 
-############################################################
-sub get_client_id_for_user_via_ldap {
-    if (!$LDAP_enabled) {return undef;}
-
-    require Net::LDAP;
-
-    my $user_id = $_[0];
-    my ($ldap, $mesg, $entry, $user_name, $result);
-
-    $user_name = &exec_pgsql_cmd_return_value("SELECT user_name FROM usr WHERE user_id=$user_id");
-    $ldap = Net::LDAP->new($LDAP_server) or die "$@";
-    $mesg = $ldap->bind;   # an anonymous bind
-    $mesg = $ldap->search( # perform a search
-        base   => "c=$LDAP_c",
-        filter => "(&(cn=$user_name) (o=$LDAP_o))"
-    );
-    $mesg->code && die $mesg->error;
-    if (count($mesg->entries) != 1) {return undef;}
-    foreach $entry ($mesg->entries) {$result = $entry->dump;}
-    $mesg = $ldap->unbind; # take down session
-    return $result;
 }
 
 
@@ -898,7 +866,8 @@ sub get_rulebase_names {
 
     my $dbh = DBI->connect("dbi:$dbdriver:dbname=$fworch_database;host=$fworch_srv_host;port=$fworch_srv_port", "$fworch_srv_user", "$fworch_srv_pw");
     if (!defined $dbh) {die "Cannot connect to database!\n";}
-    my $sth = $dbh->prepare("SELECT dev_id,dev_name,dev_rulebase FROM device WHERE mgm_id=$mgm_id AND NOT do_not_import");
+#    my $sth = $dbh->prepare("SELECT dev_id,dev_name,local_rulebase_name,global_rulebase_name FROM device WHERE mgm_id=$mgm_id AND NOT do_not_import");
+    my $sth = $dbh->prepare("SELECT dev_id,dev_name,local_rulebase_name FROM device WHERE mgm_id=$mgm_id AND NOT do_not_import");
     if (!defined $sth) {die "Cannot prepare statement: $DBI::errstr\n";}
     $sth->execute;
     my $rulebases = $sth->fetchall_hashref('dev_id');
@@ -908,12 +877,26 @@ sub get_rulebase_names {
 }
 
 #  convert hash to comma separated string
-sub get_ruleset_name_list {
+# sub get_ruleset_name_list {
+# 	my $href_rulesetname = shift;
+# 	my $result = '';
+	
+# 	while ( (my $key, my $value) = each %{$href_rulesetname}) {
+#         $result .= $value->{'dev_rulebase'} . ',';
+#     }
+#     if ($result =~ /^(.+?)\,$/) {   # stripping off last comma
+#     	return $1;
+#     }
+#     return $result;
+# }
+
+#  convert hash to comma separated string
+sub get_local_ruleset_name_list {
 	my $href_rulesetname = shift;
 	my $result = '';
 	
 	while ( (my $key, my $value) = each %{$href_rulesetname}) {
-        $result .= $value->{'dev_rulebase'} . ',';
+        $result .= $value->{'local_rulebase_name'} . ',';
     }
     if ($result =~ /^(.+?)\,$/) {   # stripping off last comma
     	return $1;
@@ -921,23 +904,25 @@ sub get_ruleset_name_list {
     return $result;
 }
 
-# falls LDAP vorhanden: Benutzer im LDAP nachschlagen und die Tenant-Zuordnung machen
-sub read_user_client_classification_from_ldap {
-    my $fehler = shift;
-    my $current_import_id = shift;
-
-    if (0 && !$fehler) {
-        # for all changes on users in current import lookup user in LDAP if found update client in usr
-        my $user_changes = &exec_pgsql_cmd_return_table_ref
-            ("SELECT * FROM changelog_user WHERE control_id=$current_import_id AND NOT change_action='D' ", 'new_user_id');
-        my ($client_id, $usr_id);
-        foreach $usr_id (keys %$user_changes) {
-            #					$usr_id = $user_changes->{"$user_change_id"}{"new_user_id"};
-            $client_id = &get_client_id_for_user_via_ldap($usr_id);
-            if (defined($client_id)) {
-                &exec_pgsql_cmd_no_result("UPDATE usr SET client_id=$client_id WHERE user_id=$usr_id");
+#  convert hash to comma separated string
+sub get_global_ruleset_name_list {
+	my $href_rulesetname = shift;
+	my $result = '';
+	
+    if (defined($href_rulesetname)) {
+        while ( (my $key, my $value) = each %{$href_rulesetname}) {
+            if (defined($value->{'global_rulebase_name'})) {
+                $result .= $value->{'global_rulebase_name'} . ',';
+            } else {
+                $result .= ',';
             }
         }
+        if ($result =~ /^(.+?)\,$/) {   # stripping off last comma
+            return $1;
+        }
+        return $result;
+    } else {
+        return "";
     }
 }
 

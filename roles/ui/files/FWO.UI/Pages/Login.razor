@@ -1,0 +1,277 @@
+@using FWO.Config.File;
+@using FWO.Middleware.RequestParameters
+@using Microsoft.AspNetCore.Components.Server.Circuits;
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using System.Net
+@using FWO.Ui.Auth
+@using FWO.Api.Client
+@using FWO.Middleware.Client
+@using FWO.Config.Api
+@using FWO.Ui.Services
+@using RestSharp
+@using System.Security.Authentication
+
+@inject MiddlewareClient middlewareClient
+@inject ProtectedSessionStorage sessionStorage
+@inject AuthenticationStateProvider AuthService
+@inject ApiConnection ApiConnection
+@inject UserConfig userConfig
+@inject GlobalConfig globalConfig
+@inject CircuitHandler circuitHandler
+
+@if (showLoginForm)
+{    
+    <div class="row text-center">
+        <div class="col-lg-4 col-md-3 col-sm-2"></div>
+        <div class="col-lg-4 col-md-6 col-sm-8 col-xs-12">
+            <img src="images/FWO_logo.png">
+            <br><br>            
+        @* <h2 class="text-center"> @(userConfig.GetText("login")) </h2> *@
+            <div class="shadow-sm card p-3">
+                <form class="d-flex flex-column">
+                    <div class="form-group">
+                        <input type="text" class="form-control @InputClass" id="UsernameInput" placeholder="@(globalConfig.GetText("username"))" value="@Username" @oninput="OnUsernameInput" @ref="usernameInput">
+                    </div>
+                    <div class="form-group mt-3">
+                        <input type="password" class="form-control @InputClass" id="PasswordInput" placeholder="@(globalConfig.GetText("password"))" value="@Password" @oninput="OnPasswordInput">
+                    </div>
+                    @if (loginInProgress == false)
+                    {
+                        <button type="submit" class="btn btn-block btn-primary mt-3" @onclick:preventDefault="true" @onclick="LoginSubmit">@(globalConfig.GetText("login"))</button>
+                        @* <button type="submit" class="btn btn-block btn-primary" @onclick:preventDefault="true" @onclick="LoginSubmit"><div class="@Icons.Login"></div></button> *@
+                    }
+                    else
+                    {
+                        <div class="spinner-border text-primary align-self-center mt-3" role="status"></div>
+                    }
+                    @if(!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <label class="m-2">@errorMessage</label>
+                    }
+                </form>  
+            </div>
+        </div> 
+        <div class="col-lg-4 col-md-3 col-sm-2"></div>       
+    </div>
+    @if(ShowWelcomeMessage)
+    {
+        <div class="row mt-4">            
+            <div class="col-lg-4 col-md-3 col-sm-2">
+            </div>
+            <div class="col-lg-4 col-md-6 col-sm-8 col-xs-12">
+                <div class="alert alert-primary" role="alert">
+                    <span>@((MarkupString)@globalConfig.WelcomeMessage)</span>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-3 col-sm-2">
+            </div>
+        </div>
+    }  
+}
+
+@if (showPasswordChangeForm)
+{
+    <div class="row m-4 justify-content-center">
+        <h2 class="text-center"> @(userConfig.GetText("change_password")) </h2>
+        <div class="shadow-sm card p-3" style="width: 250px;">
+            <form class="d-flex flex-column">
+                <div class="form-group">
+                    <input type="password" class="form-control @InputClass" id="OldPasswordInput" placeholder="@(userConfig.GetText("old_password"))" value="@oldPassword" @oninput="OnOldPasswordInput">
+                </div>
+                <div class="form-group mt-2">
+                    <input type="password" class="form-control @InputClass" id="NewPasswordInput1" placeholder="@(userConfig.GetText("new_password"))" value="@newPassword1" @oninput="OnNewPassword1Input">
+                </div>
+                <div class="form-group mt-2">
+                    <input type="password" class="form-control @InputClass" id="NewPasswordInput2" placeholder="@(userConfig.GetText("new_password"))" value="@newPassword2" @oninput="OnNewPassword2Input">
+                </div>
+                @if (passwordChangeInProgress == false)
+                {
+                    <button type="button" class="btn btn-block btn-primary mt-2" @onclick:preventDefault="true" @onclick="ChangePassword"><div class="@Icons.Login"></div></button>
+                }
+                else
+                {
+                    <div class="spinner-border text-primary align-self-center" role="status"></div>
+                }
+                <label class="m-2">@chgPwErrorMessage</label>
+            </form>
+        </div>
+    </div>
+}
+
+@code
+{
+    // dont immediately show login page because session storage is only available after render,
+    // so there might be a immediate redirect
+    private bool showLoginForm = false;
+    private bool showPasswordChangeForm = false;
+
+    private bool loginInProgress = false;
+    private bool passwordChangeInProgress = false;
+
+    private string Username = "";
+    private string Password = "";
+
+    private string InputClass = "";
+
+    private string errorMessage = "";
+
+    private ElementReference usernameInput;
+
+    private string oldPassword = "";
+    private string newPassword1 = "";
+    private string newPassword2 = "";
+    private string chgPwErrorMessage = "";
+
+    private bool ShowWelcomeMessage { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        //ApiConnection.Dispose();
+        //ApiConnection = new GraphQlApiConnection(ConfigFile.ApiServerUri);
+
+        if (firstRender)
+        {      
+            // This might be a reconnect. Check if there is a jwt in session storage.
+            ProtectedBrowserStorageResult<string> jwtLoadRequest = await sessionStorage.GetAsync<string>("jwt");
+
+            if (jwtLoadRequest.Success) // reconnect
+            {
+                try
+                {
+                    await ((AuthStateProvider)AuthService).Authenticate(jwtLoadRequest.Value ?? throw new AccessViolationException("Jwt from protected storage is null"),
+                        ApiConnection, middlewareClient, globalConfig, userConfig, ((CircuitHandlerService)circuitHandler), sessionStorage);
+                    return;
+                }
+                catch (Exception ex) { Log.WriteError("Session Restore", "Session restore unsuccessful.", ex); }
+            }
+              
+            if(!string.IsNullOrWhiteSpace(globalConfig.WelcomeMessage))
+                ShowWelcomeMessage = true;
+
+            // else no reconnect / reconnect unsuccessful
+            showLoginForm = true;
+            StateHasChanged();
+            await focusInput();
+        }
+    }
+
+    private void OnUsernameInput(ChangeEventArgs e)
+    {
+        Username = e.Value?.ToString() ?? "";
+        InputClass = "";
+    }
+
+    private void OnPasswordInput(ChangeEventArgs e)
+    {
+        Password = e.Value?.ToString() ?? "";
+        InputClass = "";
+    }
+
+    private void OnOldPasswordInput(ChangeEventArgs e)
+    {
+        oldPassword = e.Value?.ToString() ?? "";
+        InputClass = "";
+    }
+
+    private void OnNewPassword1Input(ChangeEventArgs e)
+    {
+        newPassword1 = e.Value?.ToString() ?? "";
+        InputClass = "";
+    }
+
+    private void OnNewPassword2Input(ChangeEventArgs e)
+    {
+        newPassword2 = e.Value?.ToString() ?? "";
+        InputClass = "";
+    }
+
+
+    private async Task LoginSubmit()
+    {
+        if (loginInProgress == false)
+        {
+            loginInProgress = true;
+
+            try
+            {
+                RestResponse<string> authResponse = await ((AuthStateProvider)AuthService)
+                .Authenticate(Username, Password, ApiConnection, middlewareClient, globalConfig, userConfig, sessionStorage, ((CircuitHandlerService)circuitHandler));
+
+                if (authResponse.StatusCode == HttpStatusCode.OK)
+                {
+                    if (userConfig.User.PasswordMustBeChanged)
+                    {
+                        showLoginForm = false;
+                        showPasswordChangeForm = true;
+                        StateHasChanged();
+                    }
+                }
+                else
+                {
+                    // There was an error trying to authenticate the user. Probably invalid credentials or the middleware server is unreachable
+                    if(authResponse.Data != null)
+                    {
+                        // Probably invalid credentials
+                        errorMessage = userConfig.GetApiText(authResponse.Data);
+                        // Visualisize the error by making border of all inputboxes red
+                        InputClass = "is-invalid";
+                        Log.WriteInfo("Login", $"Login of user {Username} failed: " + errorMessage);
+                    }
+                    else
+                    {
+                        // Probably the middleware server is unreachable
+                        errorMessage = "Middleware Api Error: " + authResponse.ErrorMessage;
+                        Log.WriteError("Login", $"Login of user {Username} failed: " + errorMessage);
+                    }
+
+                    await focusInput();
+                    StateHasChanged();
+                }
+            }
+            // Authentication exception (raised by us) 
+            catch (AuthenticationException e)
+            {
+                errorMessage = userConfig.GetText(e.Message);
+            }
+            // Unknown exception
+            catch (Exception exception)
+            {
+                errorMessage = userConfig.GetText("E0012");
+                Log.WriteError("Login error", $"An unexpected exception was thrown during the log in process for user: \"{Username}\".", exception);
+            }
+
+            loginInProgress = false;
+        }
+    }
+
+    private async Task focusInput()
+    {
+        if (showLoginForm)
+        {
+            await usernameInput.FocusAsync();
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        if (passwordChangeInProgress == false)
+        {
+            passwordChangeInProgress = true;
+            try
+            {
+                chgPwErrorMessage = await (new PasswordChanger(middlewareClient)).ChangePassword(oldPassword, newPassword1, newPassword2, userConfig, globalConfig);
+                if (chgPwErrorMessage == "")
+                {
+                    showPasswordChangeForm = false;
+                    ((AuthStateProvider)AuthService).ConfirmPasswordChanged();
+                    Log.WriteAudit("ChangePassword", $"user {Username} successfully changed password");
+                }
+            }
+            catch (Exception exception)
+            {
+                chgPwErrorMessage = exception.Message;
+            }
+            passwordChangeInProgress = false;
+        }
+    }
+}

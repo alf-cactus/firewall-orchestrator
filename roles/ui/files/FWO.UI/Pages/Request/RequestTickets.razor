@@ -1,0 +1,93 @@
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Api.Client
+@using FWO.Config.Api
+@using FWO.Ui.Services
+@using FWO.Middleware.Client
+
+@page "/request/tickets/{ticketId?}"
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Auditor}")]
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+@inject NavigationManager NavigationManager
+@inject MiddlewareClient middlewareClient
+
+<h3>@(userConfig.GetText("create_ticket"))</h3>
+<hr />
+
+@if(InitComplete)
+{
+    <DisplayTicketTable Phase="WorkflowPhases.request" States="states" WfHandler="wfHandler" ResetParent="Reset"/>
+}
+else
+{
+   <div class="spinner-border" role="status">
+        <span class="visually-hidden">@(userConfig.GetText("loading"))</span>
+    </div>
+}
+
+@code
+{
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+    
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    [Parameter]
+    public string? TicketId { get; set; }
+
+    private WfHandler wfHandler = new ();
+    private WfStateDict states = new ();
+    private List<int> OwnerIds = new ();
+    private bool InitComplete = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            apiConnection.SetProperRole(authenticationStateTask!.Result.User, new List<string> { Roles.Admin, Roles.Requester, Roles.Auditor });
+            await states.Init(apiConnection);
+
+            if(userConfig.ReqOwnerBased)
+            {
+                OwnerIds = (await ModellingHandlerBase.GetOwnApps(authenticationStateTask, userConfig, apiConnection, DisplayMessageInUi)).ConvertAll(x => x.Id);
+            }
+            wfHandler = new (DisplayMessageInUi, userConfig, authenticationStateTask!.Result.User, apiConnection, middlewareClient, WorkflowPhases.request){};
+            await Reset();
+            await HandleTicketId();
+            InitComplete = true;
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("fetch_requests"), "", true);
+        }
+    }
+
+    private async Task HandleTicketId()
+    {
+        if(long.TryParse(TicketId, out long ticketId))
+        {
+            string newPhase = await wfHandler.HandleInjectedTicketId(WorkflowPhases.request, ticketId);
+            if(newPhase != "")
+            {
+                NavigationManager.NavigateTo($"/request/{newPhase.ToString()}s/{TicketId}");
+            }
+        }
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            wfHandler.ReadOnlyMode = !(authenticationStateTask!.Result.User.IsInRole(Roles.Requester) || authenticationStateTask!.Result.User.IsInRole(Roles.Admin));
+            await wfHandler.Init(OwnerIds);
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("init_environment"), "", true);
+        }
+    }
+}

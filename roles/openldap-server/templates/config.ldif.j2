@@ -7,18 +7,13 @@ olcPidFile: /var/run/slapd/slapd.pid
 olcLogLevel: stats
 olcTLSCertificateFile: {{ openldap_server_cert }}
 olcTLSCertificateKeyFile: {{ openldap_server_private_key }}
-#These don't work yet
-#olcSecurity: tls=1
-#olcTLSCipherSuite: TLSv1+RSA:!NULL
-#olcTLSCRLCheck: none
-#olcTLSVerifyClient: never
 
 # modules that can be loaded
 dn: cn=module{0},cn=config
 objectClass: olcModuleList
 cn: module{0}
 olcModulePath: /usr/lib/ldap
-olcModuleLoad: {0}back_bdb.la
+olcModuleLoad: {0}back_mdb.la
 olcModuleLoad: {1}memberof.la
 olcModuleLoad: {2}refint.la
 
@@ -41,10 +36,10 @@ olcRootPW: {{ root_password.stdout }}
 olcAccess: to * by * none
 
 # add database
-dn: olcDatabase=bdb,cn=config
+dn: olcDatabase=mdb,cn=config
 objectClass: olcDatabaseConfig
-objectClass: olcBdbConfig
-olcDatabase: bdb
+objectClass: olcMdbConfig
+olcDatabase: mdb
 olcSuffix: {{ openldap_path }}
 olcDbDirectory: /var/lib/ldap/{{ openldap_server_domain_name }}/
 olcRootDN: {{ openldap_superuser_dn }}
@@ -87,7 +82,7 @@ olcAccess: to *
     by * none
 
 # Backend memberOf overlay
-dn: olcOverlay=memberof,olcDatabase={1}bdb,cn=config
+dn: olcOverlay=memberof,olcDatabase={1}mdb,cn=config
 objectClass: olcMemberOf
 objectClass: olcOverlayConfig
 objectClass: olcConfig
@@ -100,7 +95,7 @@ olcMemberOfMemberAD: uniqueMember
 olcMemberOfMemberOfAD: memberOf
 
 # Referential integrity overlay
-dn: olcOverlay=refint,olcDatabase={1}bdb,cn=config
+dn: olcOverlay=refint,olcDatabase={1}mdb,cn=config
 objectClass: olcConfig
 objectClass: olcOverlayConfig
 objectClass: olcRefintConfig

@@ -4,7 +4,7 @@
 
 Universal test structure: <https://martinfowler.com/articles/practical-test-pyramid.html#TheTestPyramid>
 
-## Ansible testing:
+## Ansible integration testing
 - <https://docs.ansible.com/ansible/latest/reference_appendices/test_strategies.html>
 - <https://www.ansible.com/blog/five-questions-testing-ansible-playbooks-roles>
 - <https://docs.ansible.com/ansible/latest/dev_guide/testing_units.html>
@@ -23,13 +23,13 @@ Instead you can use the following command to only display errors:
     SUDO password: 
 
     TASK [test : auth get jwt test output] ***************************************************************************************************************************
-    ok: [fworch-srv] => {
+    ok: [install-srv] => {
         "msg": "ERROR unexpected jwt test result (not equal 'OK'): "
     }
 
     --
     TASK [test : anonymous api access with JWT output] ***************************************************************************************************************
-    ok: [fworch-srv] => {
+    ok: [install-srv] => {
         "msg": "ERROR unexpected version test result (does not contain text_msg_id): {\"errors\":[{\"extensions\":{\"path\":\"$\",\"code\":\"invalid-jwt\"},\"message\":\"Could not verify JWT: JWTExpired\"}]}"
     }
 

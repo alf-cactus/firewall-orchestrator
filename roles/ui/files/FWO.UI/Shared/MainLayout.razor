@@ -1,0 +1,412 @@
+﻿@inherits LayoutComponentBase
+@using FWO.Config.Api
+@using FWO.Api.Client
+@using FWO.GlobalConstants
+@using FWO.Api.Data
+@using FWO.Api.Client.Queries
+@using FWO.Middleware.Client
+@using FWO.Ui.Auth
+@using FWO.Ui.Services
+@using System.Timers
+@using System.Security.Claims;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using RestSharp
+
+@inject ApiConnection apiConnection
+@inject GlobalConfig globalConfig
+@inject UserConfig userConfig
+@inject MiddlewareClient middlewareClient
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider authenticationProvider
+@inject ProtectedSessionStorage sessionStorage
+@inject CircuitHandler circuitHandler
+
+<div style="z-index:15; top:0px;" class="position-sticky">
+    <NavigationMenu @bind-ShowAlert="showAlert"/>
+</div>
+
+<div class="main">
+    <div class="content p-4">
+        <CascadingValue Value="@DisplayMessageInUiFunction">
+            @Body
+        </CascadingValue>
+    </div>
+</div>
+
+@if (messageDialogShow)
+{
+    <div class="@cssClass">
+        <div class="d-flex flex-row justify-content-between">
+            <div>@dialogTitle - @dialogMessage</div>
+            <div class="@Icons.Close" @onclick="@(() => { messageDialogShow = false; StateHasChanged();})"></div>
+        </div>
+    </div>
+}
+
+<PopUp Title="@(reloginDialogTitle)" Show="@(showReloginDialog)" Size=PopupSize.Small>
+    <Body>
+        <p>@(reloginDialogText)</p>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text"><span class="@Icons.Locked"></span></span>               
+            </div>
+            <input type="password" class="form-control @reloginCssClass" @bind="password" placeholder="@(userConfig.GetText("password"))" @bind:event="oninput" @onkeypress="@KeyHandler">
+        </div>
+        @if (!string.IsNullOrEmpty(reloginErrorMessage))
+        {
+            <label class="mt-1 mb-1 text-danger">@reloginErrorMessage</label>
+        }
+    </Body>
+    <Footer>
+        <div class="btn-group">
+            @if (reloginAbortable)
+            {
+                <button type="button" class="btn btn-secondary" @onclick="@(() => showReloginDialog = false)">@(userConfig.GetText("cancel"))</button>
+            }
+            else
+            {
+                <a class="btn btn-danger" href="/logout">@(userConfig.GetText("logout"))</a>                
+            }
+            <button type="button" class="btn btn-primary" @onclick="Relogin">@(userConfig.GetText("relogin"))</button>
+        </div>
+    </Footer>
+</PopUp>
+
+@code
+{
+    Action<Exception?, string, string, bool> DisplayMessageInUiFunction = DefaultInit.DoNothing;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    private GraphQlApiSubscription<List<Alert>>? alertSubscription;
+    private bool showAlert = false;
+    private bool messageDialogShow = false;
+    private string dialogTitle = "";
+    private string dialogMessage = "";
+    private string cssClass = "";
+    private object errorLock = new object();
+
+    private string reloginErrorMessage = "";
+    private string reloginCssClass = "";
+    private string reloginDialogTitle = "";
+    private string reloginDialogText = "";
+    private bool showReloginDialog;
+    private bool reloginAbortable;
+    private string? password;
+    private ClaimsPrincipal? user;
+
+    public enum MessageType
+    {
+        Info,
+        Success,
+        Warning,
+        Error
+    }
+
+    protected override void OnInitialized()
+    {
+        user = authenticationStateTask!.Result.User;
+        DisplayMessageInUiFunction = DisplayMessageInUi;
+
+        JwtEventService.OnPermissionChanged += OnPermissionsChanged;
+        JwtEventService.OnJwtAboutToExpire += OnJwtAboutToExpire;
+        JwtEventService.OnJwtExpired += OnJwtExpired;
+
+        alertSubscription = apiConnection.GetSubscription<List<Alert>>(ApiExceptionHandler, OnAlertUpdate, MonitorQueries.subscribeAlertChanges);
+    }
+
+    private async Task KeyHandler(KeyboardEventArgs ev)
+    {
+        if (ev.Code == "Enter")
+        {
+            await Relogin();
+        }
+        reloginCssClass = "";
+    }
+
+    private void OnPermissionsChanged(object? sender, string userDn)
+    {
+        if (userDn == userConfig.User.Dn)
+        {
+            ShowReloginDialog(userConfig.GetText("permissions_title"), userConfig.GetText("permissions_text"), reloginAbortable: true);
+        }
+    }
+
+    private void OnJwtAboutToExpire(object? sender, string userDn)
+    {
+        if (userDn == userConfig.User.Dn)
+        {
+            ShowReloginDialog(userConfig.GetText("jwt_expiry_title"), userConfig.GetText("jwt_expiry_text"), reloginAbortable: true);
+        }
+    }
+
+    private void OnJwtExpired(object? sender, string userDn)
+    {
+        if (userDn == userConfig.User.Dn)
+        {
+            ShowReloginDialog(userConfig.GetText("jwt_expired_title"), userConfig.GetText("jwt_expired_text"), reloginAbortable: false);
+        }
+    }
+
+    private void ShowReloginDialog(string title, string text, bool reloginAbortable)
+    {
+        reloginErrorMessage = "";
+        password = "";
+        this.reloginAbortable = reloginAbortable;
+        reloginDialogTitle = title;
+        reloginDialogText = text;
+        showReloginDialog = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Relogin()
+    {
+        string errorMessage = userConfig.GetText("relogin_error");
+        if (password == null)
+        {
+            password = "";
+        }
+        try
+        {
+            RestResponse<string> authResponse = await ((AuthStateProvider)authenticationProvider).Authenticate(userConfig.User.Name,
+                password, apiConnection, middlewareClient, globalConfig, userConfig, sessionStorage, ((CircuitHandlerService)circuitHandler));
+            if (authResponse.StatusCode == System.Net.HttpStatusCode.OK) 
+            { 
+                showReloginDialog = false;
+                reloginErrorMessage = "";
+                password = "";
+                return;
+            }
+            else
+            {
+                // There was an error trying to authenticate the user. Probably invalid credentials
+                errorMessage = (authResponse.Data != null ? userConfig.GetApiText(authResponse.Data) : "Middleware Api Error: " + authResponse.Content);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.WriteError("Re-login", "Re-login unsuccessful.", ex, userConfig.User.Name);
+        }
+
+        reloginErrorMessage = errorMessage;
+        reloginCssClass = "is-invalid";
+    }
+
+    private void OnAlertUpdate(List<Alert> alerts)
+    {
+        user = authenticationStateTask!.Result.User;
+        showAlert = (user.IsInRole(Roles.Admin) || user.IsInRole(Roles.FwAdmin) || user.IsInRole(Roles.Auditor)) && alerts.Count() > 0;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ShowMessage(string title, string message, MessageType type, int? showtime = null)
+    {
+        // Needed so there is no chance an error is announced by 2 threads at the same time.
+        lock (errorLock)
+        {
+            if (showtime == null)
+            {
+                showtime = userConfig.MessageViewTime * 1000; // convert to milliseconds
+            }
+
+            switch(type)
+            {
+                case MessageType.Info:
+                    cssClass = "footer alert alert-info fly-in-animation";
+                    break;
+                case MessageType.Success:
+                    cssClass = "footer alert alert-success fly-in-animation";
+                    break;
+                case MessageType.Warning:
+                    cssClass = "footer alert alert-warning-override  fly-in-animation";
+                    break;
+                case MessageType.Error:
+                    Task.Run(async () => await setAlert(title, message));
+                    cssClass = "footer alert alert-danger fly-in-animation";
+                    showtime = showtime * 3; // show errors a bit longer
+                    break;
+            }
+
+            dialogTitle = title;
+            dialogMessage = message;
+            messageDialogShow = true;
+
+            if (showtime > 0)
+            {
+                Timer messageTimer = new Timer(showtime.Value);
+                messageTimer.Elapsed += HideMessage;
+                messageTimer.AutoReset = false;
+                messageTimer.Start();
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HideMessage(object? _, ElapsedEventArgs __)
+    {
+        messageDialogShow = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void DisplayMessageInUi(Exception? exception = null, string title = "", string message = "", bool ErrorFlag = false)
+    {
+        int severity = 0;
+        string cause = "";
+        string description = "";
+        MessageType messageType = MessageType.Info;
+
+        if (exception == null)
+        {
+            cause = title;
+            description = message;
+            if (ErrorFlag)
+            {
+                // User message to be displayed as error
+                Log.WriteWarning(title, message);
+                messageType = MessageType.Warning;
+                severity = 1;
+            }
+            else
+            {
+                // User message is no error
+                messageType = MessageType.Success;
+            }
+        }
+        else
+        {
+            messageType = MessageType.Error;
+
+            // first some recurring specific messages
+            if (exception.Message.Contains("JWTExpired"))
+            {
+                Log.WriteError("Auth Token Error", "JWT expired in session.", exception);
+                // TODO: Improve error handling for jwt expiry / api unreachable, so that no action leads to unhandled exception
+                if (!showReloginDialog)
+                {
+                    showReloginDialog = true;
+                    ShowMessage(userConfig.GetText("jwt_expired_title"), userConfig.GetText("jwt_expired_text"), MessageType.Info, showtime: -1);
+                }
+                return;
+            }
+            else if (exception.Message == "no such type exists in the schema: 'cidr'")
+            {
+                // this is the default error message when user's access rights are not sufficient for API access
+                severity = 2;
+                cause = userConfig.GetText("api_access");
+                description = userConfig.GetText("E0004");
+            }
+            else
+            {
+                string role = "";
+                try
+                {
+                    JwtReader jwtReader = new JwtReader(userConfig.User.Jwt);
+                    jwtReader.Validate();
+                    role = jwtReader.GetRole();
+                }
+                catch(Exception){}
+                Log.WriteError((title != "" ? title : "Unspecified Error"), (message != "" ? message : "Unspecified error occured: "), exception, userConfig.User.Name, role);
+                severity = 2;
+                cause = (title != "" ? title : userConfig.GetText("unspecified_error"));
+                description = $"{(message != "" ? message : userConfig.GetText("E0001"))}" + (ErrorFlag ? $": {exception.Message}" : "") + " . " + userConfig.GetText("E0002");
+            }
+        }
+        ShowMessage(cause, description, messageType);
+        Task.Run(async () => await AddUiLogEntry(severity, cause, description));
+    }
+
+    public async Task AddUiLogEntry(int severity, string cause, string description)
+    {
+        try
+        {
+            var Variables = new
+            {
+                user = userConfig.User.DbId,
+                severity = severity,
+                suspectedCause = cause,
+                description = description,
+            };
+            ReturnId[]? returnIds = (await apiConnection.SendQueryAsync<NewReturning>(MonitorQueries.addUiLogEntry, Variables)).ReturnIds;
+            if (returnIds == null)
+            {
+                Log.WriteError("Write Log", "Log could not be written to database");
+            }
+        }
+        catch(Exception exc)
+        {
+            Log.WriteError("Write Log", $"Could not write log for user {userConfig.User.DbId}: ", exc);
+        }
+    }
+
+    private void ApiExceptionHandler(Exception exception)
+    {
+        Log.WriteError("Alarm Handling", "Api subscription lead to exception. Retry subscription.", exception);
+        // Subscription will be restored if no exception is thrown here
+    }
+
+    public async Task setAlert(string title, string message)
+    {
+        try
+        {
+            Log.WriteAlert ($"source: \"{GlobalConst.kUi}\"",
+                $"userId: \"{userConfig.User.DbId}\", title: \"{title}\", description: \"{message}\", alertCode: \"{AlertCode.UiError}\"");
+            
+            List<Alert> openAlerts = await apiConnection.SendQueryAsync<List<Alert>>(MonitorQueries.getOpenAlerts);
+            
+            var Variables = new
+            {
+                source = GlobalConst.kUi,
+                userId = userConfig.User.DbId,
+                title = title,
+                description = message,
+                alertCode = (int)AlertCode.UiError
+            };
+            ReturnId[]? returnIds = (await apiConnection.SendQueryAsync<NewReturning>(FWO.Api.Client.Queries.MonitorQueries.addAlert, Variables)).ReturnIds;
+            if (returnIds != null)
+            {
+                try
+                {
+                    // Acknowledge older alert for same problem
+                    Alert? existingAlert = openAlerts.FirstOrDefault(x => x.AlertCode == AlertCode.UiError && x.UserId == userConfig.User.DbId && x.Title == title);
+                    if(existingAlert != null)
+                    {
+                        await AcknowledgeAlert(existingAlert.Id);
+                    }
+                }
+                catch(Exception exc)
+                {
+                    Log.WriteError("Acknowledge Alert", $"Could not auto acknowledge existing alert for user {userConfig.User.DbId}: ", exc);
+                }
+            }
+            else
+            {
+                Log.WriteError("Write Alert", "Log could not be written to database");
+            }
+        }
+        catch(Exception exc)
+        {
+            Log.WriteError("Write Alert", $"Could not write alert for user {userConfig.User.DbId}: ", exc);
+        }
+    }
+
+    public async Task AcknowledgeAlert(long alertId)
+    {
+        try
+        {
+            var Variables = new
+            {
+                id = alertId,
+                ackUser = 0,
+                ackTime = DateTime.Now
+            };
+            await apiConnection.SendQueryAsync<ReturnId>(MonitorQueries.acknowledgeAlert, Variables);
+        }
+        catch (Exception exception)
+        {
+            Log.WriteError("Acknowledge Alert", $"Could not acknowledge alert for ui: ", exception);
+        }
+    }
+}

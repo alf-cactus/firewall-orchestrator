@@ -1,13 +1,119 @@
 
--- SET client_encoding=UTF8
--- \encoding UTF8
-
 INSERT INTO language ("name", "culture_info") VALUES('German', 'de-DE');
 INSERT INTO language ("name", "culture_info") VALUES('English', 'en-US');
 
 insert into uiuser (uiuser_id, uiuser_username, uuid) VALUES (0,'default', 'default');
 
 insert into config (config_key, config_value, config_user) VALUES ('DefaultLanguage', 'English', 0);
+insert into config (config_key, config_value, config_user) VALUES ('sessionTimeout', '720', 0);
+insert into config (config_key, config_value, config_user) VALUES ('sessionTimeoutNoticePeriod', '60', 0); -- in minutes before expiry
+insert into config (config_key, config_value, config_user) VALUES ('uiHostName', 'http://localhost:5000', 0);
+-- insert into config (config_key, config_value, config_user) VALUES ('maxMessages', '3', 0);
+insert into config (config_key, config_value, config_user) VALUES ('elementsPerFetch', '100', 0);
+insert into config (config_key, config_value, config_user) VALUES ('maxInitialFetchesRightSidebar', '10', 0);
+insert into config (config_key, config_value, config_user) VALUES ('autoFillRightSidebar', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('dataRetentionTime', '731', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importSleepTime', '40', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importCheckCertificates', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importSuppressCertificateWarnings', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('fwApiElementsPerFetch', '150', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recertificationPeriod', '365', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recertificationNoticePeriod', '30', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recertificationDisplayPeriod', '30', 0);
+insert into config (config_key, config_value, config_user) VALUES ('ruleRemovalGracePeriod', '60', 0);
+insert into config (config_key, config_value, config_user) VALUES ('commentRequired', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recAutocreateDeleteTicket', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleTicketTitle', 'Ticket Title', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleTicketReason', 'Ticket Reason', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleReqTaskTitle', 'Task Title', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleReqTaskReason', 'Task Reason', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleTicketPriority', '3', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recDeleteRuleInitState', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recCheckActive', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recCheckEmailSubject', 'Upcoming rule recertifications', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recCheckEmailUpcomingText', 'The following rules are upcoming to be recertified:', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recCheckEmailOverdueText', 'The following rules are overdue to be recertified:', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recCheckParams', '{"check_interval":2,"check_offset":1,"check_weekday":null,"check_dayofmonth":null}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recRefreshStartup', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('recRefreshDaily', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('messageViewTime', '7', 0);
+insert into config (config_key, config_value, config_user) VALUES ('dailyCheckStartAt', '00:00:00', 0);
+insert into config (config_key, config_value, config_user) VALUES ('autoDiscoverStartAt', '00:00:00', 0);
+insert into config (config_key, config_value, config_user) VALUES ('autoDiscoverSleepTime', '24', 0);
+insert into config (config_key, config_value, config_user) VALUES ('minCollapseAllDevices', '15', 0);
+insert into config (config_key, config_value, config_user) VALUES ('pwMinLength', '10', 0);
+insert into config (config_key, config_value, config_user) VALUES ('pwUpperCaseRequired', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('pwLowerCaseRequired', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('pwNumberRequired', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('pwSpecialCharactersRequired', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('maxImportDuration', '4', 0);
+insert into config (config_key, config_value, config_user) VALUES ('maxImportInterval', '12', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqMasterStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGenStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAccStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqRulDelStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqRulModStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpCreStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpModStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpDelStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqNewIntStateMatrix', '{"config_value":{"request":{"matrix":{"0":[0,49,620]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":49,"active":true},"approval":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"planning":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"verification":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"implementation":{"matrix":{"205":[205,249],"49":[210],"210":[610,210,249]},"derived_states":{"205":205,"49":49,"210":210},"lowest_input_state":49,"lowest_start_state":205,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[249,205,299]},"derived_states":{"249":249},"lowest_input_state":249,"lowest_start_state":249,"lowest_end_state":299,"active":true},"recertification":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqMasterStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGenStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAccStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqRulDelStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqRulModStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpCreStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpModStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqGrpDelStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620],"49":[49,620],"620":[620]},"derived_states":{"0":0,"49":49,"620":620},"lowest_input_state":0,"lowest_start_state":49,"lowest_end_state":49,"active":true},"approval":{"matrix":{"49":[60],"60":[60,99,610],"99":[99],"610":[610]},"derived_states":{"49":49,"60":60,"99":99,"610":610},"lowest_input_state":49,"lowest_start_state":60,"lowest_end_state":99,"active":true},"planning":{"matrix":{"99":[110],"110":[110,120,130,149],"120":[120,110,130,149],"130":[130,110,120,149,610],"149":[149],"610":[610]},"derived_states":{"99":99,"110":110,"120":110,"130":110,"149":149,"610":610},"lowest_input_state":99,"lowest_start_state":110,"lowest_end_state":149,"active":false},"verification":{"matrix":{"149":[160],"160":[160,199,610],"199":[199],"610":[610]},"derived_states":{"149":149,"160":160,"199":199,"610":610},"lowest_input_state":149,"lowest_start_state":160,"lowest_end_state":199,"active":false},"implementation":{"matrix":{"99":[210],"210":[210,220,249],"220":[220,210,249,610],"249":[249],"610":[610]},"derived_states":{"99":99,"210":210,"220":210,"249":249,"610":610},"lowest_input_state":99,"lowest_start_state":210,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[260],"260":[260,270,299],"270":[210,270,260,299,610],"299":[299],"610":[610]},"derived_states":{"249":249,"260":260,"270":260,"299":299,"610":610},"lowest_input_state":249,"lowest_start_state":260,"lowest_end_state":299,"active":false},"recertification":{"matrix":{"299":[310],"310":[310,349,400],"349":[349],"400":[400]},"derived_states":{"299":299,"310":310,"349":349,"400":400},"lowest_input_state":299,"lowest_start_state":310,"lowest_end_state":349,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqNewIntStateMatrixDefault', '{"config_value":{"request":{"matrix":{"0":[0,49,620]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":49,"active":true},"approval":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"planning":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"verification":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false},"implementation":{"matrix":{"205":[205,249],"49":[210],"210":[610,210,249]},"derived_states":{"205":205,"49":49,"210":210},"lowest_input_state":49,"lowest_start_state":205,"lowest_end_state":249,"active":true},"review":{"matrix":{"249":[249,205,299]},"derived_states":{"249":249},"lowest_input_state":249,"lowest_start_state":249,"lowest_end_state":299,"active":true},"recertification":{"matrix":{"0":[0]},"derived_states":{"0":0},"lowest_input_state":0,"lowest_start_state":0,"lowest_end_state":0,"active":false}}}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAvailableTaskTypes', '[0,1,2,3]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqPriorities', '[{"numeric_prio":1,"name":"Highest","ticket_deadline":1,"approval_deadline":1},{"numeric_prio":2,"name":"High","ticket_deadline":3,"approval_deadline":2},{"numeric_prio":3,"name":"Medium","ticket_deadline":7,"approval_deadline":3},{"numeric_prio":4,"name":"Low","ticket_deadline":14,"approval_deadline":7},{"numeric_prio":5,"name":"Lowest","ticket_deadline":30,"approval_deadline":14}]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAutoCreateImplTasks', 'enterInReqTask', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqOwnerBased', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAllowObjectSearch', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqAllowManualOwnerAdmin', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqActivatePathAnalysis', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reqShowCompliance', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('unusedTolerance', '400', 0);
+insert into config (config_key, config_value, config_user) VALUES ('creationTolerance', '90', 0);
+insert into config (config_key, config_value, config_user) VALUES ('ruleOwnershipMode', 'mixed', 0);
+insert into config (config_key, config_value, config_user) VALUES ('allowServerInConn', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('allowServiceInConn', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importAppDataStartAt', '00:00:00', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importAppDataSleepTime', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importSubnetDataStartAt', '00:00:00', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importSubnetDataSleepTime', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importAppDataPath', '[]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('importSubnetDataPath', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modNamingConvention', '{"networkAreaRequired":false,"useAppPart":false,"fixedPartLength":0,"freePartLength":0,"networkAreaPattern":"","appRolePattern":""}', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modCommonAreas', '[]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modAppServerTypes', '[{"Id":0,"Name":"Default"}]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqInterfaceName', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqEmailReceiver', 'OwnerGroupOnly', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqEmailRequesterInCc', 'true', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqEmailSubject', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqEmailBody', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqTicketTitle', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modReqTaskTitle', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('modIconify', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('reducedProtocolSet', 'True', 0);
+insert into config (config_key, config_value, config_user) VALUES ('overviewDisplayLines', '3', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailServerAddress', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailPort', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailTls', 'None', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailUser', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailPassword', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('emailSenderAddress', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifyRecipients', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifySubject', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifyBody', '', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifyActive', 'False', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifyType', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifySleepTime', '0', 0);
+insert into config (config_key, config_value, config_user) VALUES ('impChangeNotifyStartAt', '00:00:00', 0);
+
+insert into config (config_key, config_value, config_user) VALUES ('extTicketSystems', '[{"Url":"","TicketTemplate":"{\"ticket\":{\"subject\":\"@@TICKET_SUBJECT@@\",\"priority\":\"@@PRIORITY@@\",\"requester\":\"@@ONBEHALF@@\",\"domain_name\":\"\",\"workflow\":{\"name\":\"@@WORKFLOW_NAME@@\"},\"steps\":{\"step\":[{\"name\":\"Erfassung des Antrags\",\"tasks\":{\"task\":{\"fields\":{\"field\":[@@TASKS@@]}}}}]}}}","TasksTemplate":"{\"@xsi.type\":\"multi_access_request\",\"name\":\"GewünschterZugang\",\"read_only\":false,\"access_request\":{\"order\":\"AR1\",\"verifier_result\":{\"status\":\"notrun\"},\"use_topology\":true,\"targets\":{\"target\":{\"@type\":\"ANY\"}},\"users\":{\"user\":@@USERS@@},\"sources\":{\"source\":@@SOURCES@@},\"destinations\":{\"destination\":@@DESTINATIONS@@},\"services\":{\"service\":@@SERVICES@@},\"action\":\"@@ACTION@@\",\"labels\":\"\"}},{\"@xsi.type\":\"text_area\",\"name\":\"Grund für den Antrag\",\"read_only\":false,\"text\":\"@@REASON@@\"},{\"@xsi.type\":\"drop_down_list\",\"name\":\"Regel Log aktivieren?\",\"selection\":\"@@LOGGING@@\"},{\"@xsi.type\":\"date\",\"name\":\"Regel befristen bis:\"},{\"@xsi.type\":\"text_field\",\"name\":\"Anwendungs-ID\",\"text\":\"@@APPID@@\"},{\"@xsi.type\":\"checkbox\",\"name\":\"Die benötigte Kommunikationsverbindung ist im Kommunikationsprofil nach IT-Sicherheitsstandard hinterlegt\",\"value\":@@COM_DOCUMENTED@@},{\"@xsi.type\":\"drop_down_list\",\"name\":\"Expertenmodus: Exakt wie beantragt implementieren (Designervorschlag ignorieren)\",\"selection\":\"Nein\"}"}]', 0);
+insert into config (config_key, config_value, config_user) VALUES ('welcomeMessage', '', 0);
 
 INSERT INTO "report_format" ("report_format_name") VALUES ('json');
 INSERT INTO "report_format" ("report_format_name") VALUES ('pdf');
@@ -15,15 +121,119 @@ INSERT INTO "report_format" ("report_format_name") VALUES ('csv');
 INSERT INTO "report_format" ("report_format_name") VALUES ('html');
 
 -- default report templates belong to user 0 
-INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner") 
-    VALUES ('type=rules and time=now ','Current Rules','T0101', 0);
-INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner") 
-    VALUES ('type=changes and time="this year" ','This year''s Rule Changes','T0102', 0);
-INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner") 
-    VALUES ('type=statistics and time=now ','Basic Statistics','T0103', 0);
-INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner") 
-    VALUES ('type=rules and time=now and (src=any or dst=any or svc=any or src=all or dst=all or svc=all) and not(action=drop or action=reject or action=deny) ',
-        'Compliance: Pass rules with ANY','T0104', 0);
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','Current Rules','T0101', 0,
+        '{"report_type":1,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','This year''s Rule Changes','T0102', 0, 
+        '{"report_type":2,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','Basic Statistics','T0103', 0,
+        '{"report_type":3,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('(src=any or dst=any or svc=any or src=all or dst=all or svc=all) and not(action=drop or action=reject or action=deny) ',
+        'Compliance: Pass rules with ANY','T0104', 0, 
+        '{"report_type":1,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','Current NAT Rules','T0105', 0,
+        '{"report_type":4,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','Last year''s Unused Rules','T0106', 0,
+        '{"report_type":10,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false},
+            "unused_filter": {
+                "creationTolerance": 0,
+                "unusedForDays": 365}}');
+INSERT INTO "report_template" ("report_filter","report_template_name","report_template_comment","report_template_owner", "report_parameters") 
+    VALUES ('','Next Month''s Recertifications','T0107', 0,
+        '{"report_type":7,"device_filter":{"management":[]},
+            "time_filter": {
+                "is_shortcut": true,
+                "shortcut": "now",
+                "report_time": "2022-01-01T00:00:00.0000000+01:00",
+                "timerange_type": "SHORTCUT",
+                "shortcut_range": "this year",
+                "offset": 0,
+                "interval": "DAYS",
+                "start_time": "2022-01-01T00:00:00.0000000+01:00",
+                "end_time": "2022-01-01T00:00:00.0000000+01:00",
+                "open_start": false,
+                "open_end": false},
+            "recert_filter": {
+                "recertOwnerList": [],
+                "recertShowAnyMatch": true,
+                "recertificationDisplayPeriod": 30}}');
 
 insert into parent_rule_type (id, name) VALUES (1, 'section');          -- do not restart numbering
 insert into parent_rule_type (id, name) VALUES (2, 'guarded-layer');    -- restart numbering, rule restrictions are ANDed to all rules below it, layer is not entered if guard does not apply
@@ -58,6 +268,8 @@ insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (15,'voip_gk');
 insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (16,'gsn_handover_group');
 insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (17,'voip_sip');
 insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (18,'simple-gateway');
+insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (19,'external-gateway');
+insert into stm_obj_typ (obj_typ_id,obj_typ_name) VALUES (20,'voip');   -- general voip object replacing old specific ones and including CpmiVoipSipDomain
 
 insert into stm_action (action_id,action_name) VALUES (1,'accept'); -- cp, fortinet
 insert into stm_action (action_id,action_name) VALUES (2,'drop'); -- cp
@@ -79,6 +291,16 @@ insert into stm_action (action_id,action_name) VALUES (17,'tunnel vpn-group'); -
 insert into stm_action (action_id,action_name) VALUES (18,'tunnel vpn'); -- netscreen vpn
 insert into stm_action (action_id,action_name) VALUES (19,'actionlocalredirect'); -- phion
 insert into stm_action (action_id,action_name) VALUES (20,'inner layer'); -- check point r8x
+-- adding new nat actions for nat rules (xlate_rule only)
+insert into stm_action (action_id,action_name) VALUES (21,'NAT src') ON CONFLICT DO NOTHING; -- source ip nat
+insert into stm_action (action_id,action_name) VALUES (22,'NAT src, dst') ON CONFLICT DO NOTHING; -- source and destination ip nat
+insert into stm_action (action_id,action_name) VALUES (23,'NAT src, dst, svc') ON CONFLICT DO NOTHING; -- source and destination ip nat plus port nat
+insert into stm_action (action_id,action_name) VALUES (24,'NAT dst') ON CONFLICT DO NOTHING; -- destination ip nat
+insert into stm_action (action_id,action_name) VALUES (25,'NAT dst, svc') ON CONFLICT DO NOTHING; -- destination ip nat plus port nat
+insert into stm_action (action_id,action_name) VALUES (26,'NAT svc') ON CONFLICT DO NOTHING; -- port nat
+insert into stm_action (action_id,action_name) VALUES (27,'NAT src, svc') ON CONFLICT DO NOTHING; -- source ip nat plus port nat
+insert into stm_action (action_id,action_name) VALUES (28,'NAT') ON CONFLICT DO NOTHING; -- generic NAT
+insert into stm_action (action_id,action_name) VALUES (29,'inform'); -- cp
 
 insert into stm_track (track_id,track_name) VALUES (1,'log');
 insert into stm_track (track_id,track_name) VALUES (2,'none');
@@ -103,164 +325,59 @@ insert into stm_track (track_id,track_name) VALUES (18,'all');
 insert into stm_track (track_id,track_name) VALUES (19,'all start');
 insert into stm_track (track_id,track_name) VALUES (20,'utm');
 insert into stm_track (track_id,track_name) VALUES (22,'utm start');
--- check point R8x:
-insert into stm_track (track_id,track_name) VALUES (21,'network log');
+insert into stm_track (track_id,track_name) VALUES (21,'network log'); -- check point R8x:
 
-insert into request_type (request_type_id, request_type_name, request_type_comment) VALUES (1, 'ARS', 'Remedy ARS Ticket');
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (2,'Netscreen','5.x-6.x','Netscreen', '', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (4,'FortiGateStandalone','5ff','Fortinet','', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (5,'Barracuda Firewall Control Center','Vx','phion','',true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (6,'phion netfence','3.x','phion','', false,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (7,'Check Point','R5x-R7x','Check Point','', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (8,'JUNOS','10-21','Juniper','any;0;0;65535;;junos-predefined-service;simple;', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (9,'Check Point','R8x','Check Point','', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (10,'FortiGate','5ff','Fortinet','', false,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (11,'FortiADOM','5ff','Fortinet','', true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (12,'FortiManager','5ff','Fortinet','',true,true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (13,'Check Point','MDS R8x','Check Point','',true,true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (14,'Cisco Firepower Management Center','7ff','Cisco','',true,true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (15,'Cisco Firepower Domain','7ff','Cisco','',false,true,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (16,'Cisco Firepower Gateway','7ff','Cisco','',false,false,false);
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+     VALUES (17,'DummyRouter Management','1','DummyRouter','',false,true,true) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (18,'DummyRouter Gateway','1','DummyRouter','',false,false,true) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+     VALUES (19,'Azure','2022ff','Microsoft','',false,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (20,'Azure Firewall','2022ff','Microsoft','',false,false,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+     VALUES (21,'Palo Alto Firewall','2023ff','Palo Alto','',false,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (22,'Palo Alto Panorama','2023ff','Palo Alto','',true,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (23,'Palo Alto Management','2023ff','Palo Alto','',false,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (24,'FortiOS Management','REST','Fortinet','',false,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (25,'Fortinet FortiOS Gateway','REST','Fortinet','',false,false,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (26,'NSX','REST','VMWare','',false,true,false) ON CONFLICT DO NOTHING;
+insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc,dev_typ_is_multi_mgmt,dev_typ_is_mgmt,is_pure_routing_device)
+    VALUES (27,'NSX DFW Gateway','REST','VMWare','',false,false,false) ON CONFLICT DO NOTHING;
 
--- insert into stm_track (track_id,track_name) VALUES (13,'count traffic');  -- netscreen: traffic means traffic shaping not logging
-
--- insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (1,'Check Point NG','R5x','Check Point','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (2,'Netscreen','5.x-6.x','Netscreen', '');
--- insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (3,'Netscreen','6.x','Netscreen','');
--- insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (4,'Check Point NGX','R6x','Check Point','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (5,'Barracuda Firewall Control Center','Vx','phion','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (6,'phion netfence','3.x','phion','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (7,'Check Point','R5x-R7x','Check Point','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (8,'JUNOS','10-21','Juniper','any;0;0;65535;;junos-predefined-service;simple;');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (9,'Check Point','R8x','Check Point','');
-insert into stm_dev_typ (dev_typ_id,dev_typ_name,dev_typ_version,dev_typ_manufacturer,dev_typ_predef_svc) VALUES (10,'Fortinet','5.x-6.x','Fortinet','');
-
--- update stm_dev_typ set dev_typ_predef_svc=
--- 'ANY;0;0;65535;1;other;simple;
--- MS-RPC-ANY;;0;0;1;other;rpc;
--- MS-AD-BR;;0;0;1;other;rpc;
--- MS-AD-DRSUAPI;;0;0;1;other;rpc;
--- MS-AD-DSROLE;;0;0;1;other;rpc;
--- MS-AD-DSSETUP;;0;0;1;other;rpc;
--- MS-DTC;;0;0;1;other;rpc;
--- MS-EXCHANGE-DATABASE;;0;0;1;other;rpc;
--- MS-EXCHANGE-DIRECTORY;;0;0;1;other;rpc;
--- MS-EXCHANGE-INFO-STORE;;0;0;1;other;rpc;
--- MS-EXCHANGE-MTA;;0;0;1;other;rpc;
--- MS-EXCHANGE-STORE;;0;0;1;other;rpc;
--- MS-EXCHANGE-SYSATD;;0;0;1;other;rpc;
--- MS-FRS;;0;0;1;other;rpc;
--- MS-IIS-COM;;0;0;1;other;rpc;
--- MS-IIS-IMAP4;;0;0;1;other;rpc;
--- MS-IIS-INETINFO;;0;0;1;other;rpc;
--- MS-IIS-NNTP;;0;0;1;other;rpc;
--- MS-IIS-POP3;;0;0;1;other;rpc;
--- MS-IIS-SMTP;;0;0;1;other;rpc;
--- MS-ISMSERV;;0;0;1;other;rpc;
--- MS-MESSENGER;;0;0;30;other;rpc;
--- MS-MQQM;;0;0;1;other;rpc;
--- MS-NETLOGON;;0;0;1;other;rpc;
--- MS-SCHEDULER;;0;0;1;other;rpc;
--- MS-WIN-DNS;;0;0;1;other;rpc;
--- MS-WINS;;0;0;1;other;rpc;
--- SUN-RPC;;0;0;1;other;rpc;
--- SUN-RPC-ANY;;0;0;1;other;rpc;
--- SUN-RPC-MOUNTD;;0;0;30;other;rpc;
--- SUN-RPC-NFS;;0;0;40;other;rpc;
--- SUN-RPC-NLOCKMGR;;0;0;1;other;rpc;
--- SUN-RPC-RQUOTAD;;0;0;30;other;rpc;
--- SUN-RPC-RSTATD;;0;0;30;other;rpc;
--- SUN-RPC-RUSERD;;0;0;30;other;rpc;
--- SUN-RPC-SADMIND;;0;0;30;other;rpc;
--- SUN-RPC-SPRAYD;;0;0;30;other;rpc;
--- SUN-RPC-STATUS;;0;0;30;other;rpc;
--- SUN-RPC-WALLD;;0;0;30;other;rpc;
--- SUN-RPC-YPBIND;;0;0;30;other;rpc;
--- ICMP Address Mask;1;0;65535;1;other;simple;
--- ICMP-ANY;1;0;65535;1;other;simple;
--- ICMP Dest Unreachable;1;0;65535;1;other;simple;
--- ICMP Fragment Needed;1;0;65535;1;other;simple;
--- ICMP Fragment Reassembly;1;0;65535;1;other;simple;
--- ICMP Host Unreachable;1;0;65535;1;other;simple;
--- ICMP-INFO;1;0;65535;1;other;simple;
--- ICMP Parameter Problem;1;0;65535;1;other;simple;
--- ICMP Port Unreachable;1;0;65535;1;other;simple;
--- ICMP Protocol Unreach;1;0;65535;1;other;simple;
--- ICMP Redirect;1;0;65535;1;other;simple;
--- ICMP Redirect Host;1;0;65535;1;other;simple;
--- ICMP Redirect TOS & Host;1;0;65535;1;other;simple;
--- ICMP Redirect TOS & Net;1;0;65535;1;other;simple;
--- ICMP Source Quench;1;0;65535;1;other;simple;
--- ICMP Source Route Fail;1;0;65535;1;other;simple;
--- ICMP Time Exceeded;1;0;65535;1;other;simple;
--- ICMP-TIMESTAMP;1;0;65535;1;other;simple;
--- PING;1;0;65535;1;other;simple;
--- TRACEROUTE;1;0;65535;1;other;simple;
--- AOL;6;5190;5194;30;remote;simple;
--- BGP;6;179;179;30;other;simple;
--- FINGER;6;79;79;30;info seeking;simple;
--- FTP;6;21;21;30;remote;simple;
--- FTP-Get;6;21;21;30;remote;simple;
--- FTP-Put;6;21;21;30;remote;simple;
--- GOPHER;6;70;70;30;info seeking;simple;
--- H.323;6;1720;1720;30;remote;simple;
--- HTTP;6;80;80;5;info seeking;simple;
--- HTTPS;6;443;443;30;security;simple;
--- IMAP;6;143;143;30;email;simple;
--- Internet Locator Service;6;389;389;30;info seeking;simple;
--- IRC;6;6660;6669;30;remote;simple;
--- LDAP;6;389;389;30;info seeking;simple;
--- MAIL;6;25;25;30;email;simple;
--- MSN;6;1863;1863;30;remote;simple;
--- NetMeeting;6;1720;1720;2160;remote;simple;
--- NNTP;6;119;119;30;info seeking;simple;
--- NS Global;6;15397;15397;30;remote;simple;
--- NS Global PRO;6;15397;15397;30;remote;simple;
--- POP3;6;110;110;30;email;simple;
--- PPTP;6;1723;1723;30;security;simple;
--- Real Media;6;7070;7070;30;info seeking;simple;
--- RLOGIN;6;513;513;30;remote;simple;
--- RSH;6;514;514;30;remote;simple;
--- RTSP;6;554;554;30;info seeking;simple;
--- SMB;6;139;139;30;remote;simple;
--- SMTP;6;25;25;30;email;simple;
--- SQL*Net V1;6;1525;1525;480;other;simple;
--- SQL*Net V2;6;1521;1521;480;other;simple;
--- SSH;6;22;22;480;security;simple;
--- TCP-ANY;6;0;65535;30;other;simple;
--- TELNET;6;23;23;480;remote;simple;
--- VDO Live;6;7000;7010;30;info seeking;simple;
--- WAIS;6;210;210;30;info seeking;simple;
--- WINFRAME;6;1494;1494;30;remote;simple;
--- X-WINDOWS;6;6000;6063;30;remote;simple;
--- YMSG;6;5050;5050;30;remote;simple;
--- DHCP-Relay;17;67;67;1;info seeking;simple;
--- DNS;17;53;53;1;info seeking;simple;
--- GNUTELLA;17;6346;6347;1;remote;simple;
--- IKE;17;500;500;1;security;simple;
--- L2TP;17;1701;1701;1;remote;simple;
--- MS-RPC-EPM;17;135;135;1;remote;simple;
--- NBNAME;17;137;137;1;remote;simple;
--- NBDS;17;138;138;1;remote;simple;
--- NFS;17;111;111;40;remote;simple;
--- NSM;17;69;69;1;other;simple;
--- NTP;17;123;123;1;other;simple;
--- PC-Anywhere;17;5632;5632;1;remote;simple;
--- RIP;17;520;520;1;other;simple;
--- SIP;17;5060;5060;1;other;simple;
--- SNMP;17;161;161;1;other;simple;
--- SUN-RPC-PORTMAPPER;17;111;111;40;remote;simple;
--- SYSLOG;17;514;514;1;other;simple;
--- TALK;17;517;518;1;other;simple;
--- TFTP;17;69;69;1;remote;simple;
--- UDP-ANY;17;0;65535;1;other;simple;
--- UUCP;17;540;540;1;remote;simple;
--- OSPF;89;0;65535;1;other;simple;
--- MS-SQL;6;1433;1433;30;other;simple;
--- LPR;6;515;515;30;other;simple;
--- REXEC;6;512;512;30;remote;simple;
--- IDENT;6;113;113;30;other;simple;
--- SCTP-ANY;132;0;65535;1;other;simple;
--- GRE;47;0;65535;60;remote;simple;
--- HTTP;6;80;80;5;info seeking;simple;
--- MGCP-UA;17;2427;2427;120;other;simple;
--- GTP;17;2123;2123;30;remote;simple;
--- MGCP-CA;17;2727;2727;120;other;simple;
--- WHOIS;6;43;43;30;info seeking;simple;
--- DISCARD;17;9;9;1;other;simple;
--- RADIUS;17;1812;1813;1;other;simple;
--- ECHO;17;7;7;1;other;simple;
--- VNC;6;5800;5800;30;other;simple;
--- CHARGEN;17;19;19;1;other;simple;
--- SQL Monitor;17;1434;1434;1;other;simple;
--- IKE-NAT;17;500;500;3;security;simple;'
--- where dev_typ_id=2;
 
 update stm_dev_typ set dev_typ_predef_svc=
 'ANY;0;0;65535;1;other;simple
@@ -431,10 +548,52 @@ MS-IIS;;;;;Microsoft IIS Server;group;MS-IIS-COM|MS-IIS-IMAP4|MS-IIS-INETINFO|MS
 VOIP;;;;;VOIP Service Group;group;H.323|MGCP-CA|MGCP-UA|SCCP|SIP'
 where dev_typ_id=2;
 
+-- SET statement_timeout = 0;
+-- SET client_encoding = 'UTF8';
+-- SET standard_conforming_strings = on;
+-- SET check_function_bodies = false;
+-- SET client_min_messages = warning;
+-- SET search_path = public, pg_catalog;
 
-SET statement_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SET check_function_bodies = false;
-SET client_min_messages = warning;
-SET search_path = public, pg_catalog;
+insert into request.state (id,name) VALUES (0,'Draft');
+insert into request.state (id,name) VALUES (49,'Requested');
+
+insert into request.state (id,name) VALUES (50,'To Approve');
+insert into request.state (id,name) VALUES (60,'In Approval');
+insert into request.state (id,name) VALUES (99,'Approved');
+
+insert into request.state (id,name) VALUES (100,'To Plan');
+insert into request.state (id,name) VALUES (110,'In Planning');
+insert into request.state (id,name) VALUES (120,'Wait For Approval');
+insert into request.state (id,name) VALUES (130,'Compliance Violation');
+insert into request.state (id,name) VALUES (149,'Planned');
+
+insert into request.state (id,name) VALUES (150,'To Verify Plan');
+insert into request.state (id,name) VALUES (160,'Plan In Verification');
+insert into request.state (id,name) VALUES (199,'Plan Verified');
+
+insert into request.state (id,name) VALUES (200,'To Implement');
+insert into request.state (id,name) VALUES (205,'Rework');
+insert into request.state (id,name) VALUES (210,'In Implementation');
+insert into request.state (id,name) VALUES (220,'Implementation Trouble');
+insert into request.state (id,name) VALUES (249,'Implemented');
+
+insert into request.state (id,name) VALUES (250,'To Review');
+insert into request.state (id,name) VALUES (260,'In Review');
+insert into request.state (id,name) VALUES (270,'Further Work Requested');
+insert into request.state (id,name) VALUES (299,'Verified');
+
+insert into request.state (id,name) VALUES (300,'To Recertify');
+insert into request.state (id,name) VALUES (310,'In Recertification');
+insert into request.state (id,name) VALUES (349,'Recertified');
+insert into request.state (id,name) VALUES (400,'Decertified');
+
+insert into request.state (id,name) VALUES (500,'InProgress');
+
+insert into request.state (id,name) VALUES (600,'Done');
+insert into request.state (id,name) VALUES (610,'Rejected');
+insert into request.state (id,name) VALUES (620,'Discarded');
+
+INSERT INTO owner (id, name, dn, group_dn, is_default, recert_interval, app_id_external) 
+VALUES    (0, 'super-owner', 'uid=admin,ou=tenant0,ou=operator,ou=user,dc=fworch,dc=internal', 'group-dn-for-super-owner', true, 365, 'NONE')
+ON CONFLICT DO NOTHING; 

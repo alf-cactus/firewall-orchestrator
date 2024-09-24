@@ -1,37 +1,50 @@
 # all a developer needs to know ;-)
 
-##
-Edit architecture diagram (internal only) at https://xfer.cactus.de/index.php/f/18376
+## Contributing
 
-## tools & apps
+- create a fork of the [Cactus eSecurity firewall orchestrator repo](https://github.com/CactuseSecurity/firewall-orchestrator)
+- make changes only within the "develop" branch
+- open pull request from your fork branch "develop" to the same branch in the Cactus eSecurity firewall orchestrator repo
+- do you for example want to know how to add an [import module for a new firewall type](importer/readme.md)?
 
-- jiffy time tracking: android app, see play store
-- nextcloud talk app: android app, see play store, alerts via beeps!
 
-
-## git ettiquete
-- changes in documemtation dir can be done directly without pull-request
-- all other changes need to be reviewed via pull-request
-
-## UI 
+## Misc
+### UI 
 
 [Open Iconic Icons](https://useiconic.com/open)
 
-## database
+### importer
 
-To manually rollback a hanging import of management with ID 1:
+#### Manually rollback a hanging import 
 
-`sudo -u postgres psql -d fworchdb -c "select * from rollback_import_of_mgm(1)"`
+E.g. hanging import of management with ID 1:
 
-## clean code
+##### DB based
+`sudo -u postgres psql -d fworchdb -c "select * from rollback_import_of_mgm(<management id>)"`
 
-### shell
+old, more invasive version:
+
+`select * from rollback_import_of_mgm_without_cascade(<management id>);`
+
+##### API based
+```graphql
+mutation delete_import($mgmId: Int!) {
+  delete_import_control(where: {mgm_id: {_eq: $mgmId}, successful_import: {_eq: false}, stop_time: {_is_null: true}}) {
+    affected_rows
+  }
+}
+```
+Query variables: {"mgmId": 1}
+
+### clean code
+
+#### shell
 - <https://github.com/koalaman/shellcheck/wiki/SC2148> (Use Shebang)
 - <https://www.shellcheck.net/wiki/SC2086> (Double quote to prevent globbing and word splitting.)
 - <https://www.shellcheck.net/wiki/SC2006> (Use $(...) notation instead of legacy backticked '...'.)
 - <https://github.com/koalaman/shellcheck/wiki/SC2034> (Unused variables)
 
-### documentation in markdown
+#### documentation in markdown
 
 Clean Markdown (according to markdownlint)
 
@@ -43,7 +56,7 @@ Clean Markdown (according to markdownlint)
 - No hard tabs
 - Must have newline character at end of file
 
-####  MD040/fenced-code-language Fenced code blocks should have a language specified
+#####  MD040/fenced-code-language Fenced code blocks should have a language specified
 
 Code blocks must contain language in first line. Either use three ~ or ` chars, e.g.
 ```console
@@ -54,11 +67,11 @@ Code blocks must contain language in first line. Either use three ~ or ` chars, 
 ~~~
 ```
 
-#### Headers
+##### Headers
 
 - Only one top level header in the same document
 
-  ```
+  ```console
   # Title
 
   text
@@ -68,26 +81,26 @@ Code blocks must contain language in first line. Either use three ~ or ` chars, 
   text
   ```
 
-#### Lists
+##### Lists
 
 - One or zero whitespaces after list marker
 
-  ```
+  ```console
   - List Item
     - List Item
   ```
 
-#### URLs
+##### URLs
 
 - Example without text
 
-  ```
+  ```console
   <https://www.apollographql.com/>
   ```
 
 - Example with text:
 
-  ```
+  ```console
   [Link to whatever](https://github.com/CactuseSecurity/firewall-orchestrator/blob/master/whatever/whatever.md)
   ```
 

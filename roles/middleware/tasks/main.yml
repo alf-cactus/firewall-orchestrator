@@ -1,86 +1,83 @@
 ---
-- name: create middleware directory
-  file:
-    dest: "{{ middleware_server_base_dir }}"
-    state: directory
-    owner: "{{ fworch_user }}"
-    group: "{{ fworch_group }}"
-  become: yes
+- block:
+  - name: initialize handler for datarecovery
+    set_fact:
+      middleware_handler_guard: start
+    changed_when: true
+    notify:
+    - middleware handler
+    when: installation_mode == "upgrade"
 
-- name: copy middleware module files to middlewareserver
-  copy:
-    src: "{{ middleware_path_rel }}"
-    dest: "{{ middleware_server_base_dir }}"
-    owner: "{{ fworch_user }}"
-    group: "{{ fworch_group }}"
-  become: yes
+  - name: check for middleware dir
+    stat:
+      path: "{{ fworch_home }}/middleware"
+    register: middleware_dir_check
 
-- name: install python3-openssl for openssl key generation
-  package:
-    name: "{{ item }}"
-  loop:
-    - python3-cryptography
-    - python3-openssl
-  become: yes
+  - name: backup middleware dir
+    synchronize:
+      src: "{{ fworch_home }}/middleware"
+      dest: "{{ fworch_home }}/backup_middleware"
+    delegate_to: "{{ inventory_hostname }}"
+    when: middleware_dir_check.stat.exists and installation_mode == "upgrade"
 
-- name: install libs needed for pdf creator nuget packet HakanL/WkHtmlToPdf-DotNet
-  package:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - libjpeg62
-    - libgdiplus
-  become: yes
+  - name: remove middleware dir
+    file:
+      state: absent
+      path: "{{ fworch_home }}/middleware"
+    when: installation_mode == "upgrade"
+
+  - name: create middleware directory
+    file:
+      dest: "{{ middleware_server_base_dir }}"
+      state: directory
+      owner: "{{ fworch_user }}"
+      group: "{{ fworch_group }}"
+
+  - name: copy middleware module files to middlewareserver
+    synchronize:
+      src: "{{ middleware_path_rel }}"
+      dest: "{{ middleware_server_base_dir }}"
+      rsync_opts:
+        - "--chown={{ fworch_user }}:{{ fworch_group }}"
+    tags: [ 'test' ]
+
+  - name: install python3-openssl for openssl key generation and unprivileged user
+    package:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - python3-cryptography
+      - python3-openssl
+
+  become: true
 
 - name: create auth secrets (jwt key, ldap)
   include_tasks: create_auth_secrets.yml
 
-- name: check if there already is an ldap connection in DB
-  postgresql_query:
-    db: "{{ fworch_db_name }}"
-    query: SELECT COUNT(*) FROM ldap_connection
-  become: yes
-  become_user: postgres
-  register: ldap_conn_present
-
-- name: change value for middleware_change_local_ldap if ldap conn already exists to prevent re-creation errors
-  set_fact:
-    middleware_change_local_ldap: "no"
-  when: ldap_conn_present.query_result.0.count >= 1
-
 - name: import ldif driven changes
   import_tasks: set_initial_ldap_tree.yml
+  when: installation_mode == "new"
 
 - name: install python modules for ansible ldap module via package
   package:
     name:
       - python3-pip
       - libsasl2-dev
-      - python-dev
+      - python3-dev
       - libldap2-dev
       - libssl-dev
       - python3-setuptools
       - python3-pyldap
-  become: yes
-
-# - name: install python modules for ansible ldap module via pip
-#   pip:
-#     name: pyldap
-#   become: yes
+  become: true
 
 - name: make sure {{ fworch_secrets_dir }} exists
   file:
     path: "{{ fworch_secrets_dir }}"
     state: directory
     owner: "{{ fworch_user }}"
-    group: "{{ fworch_group }}"
-    mode: "0700"
-  become: yes
-
-# - name: set UI admin password from parameter
-#   set_fact:
-#     admin_password: "{{ admin_initial_password }}"
-#   when: admin_initial_password is defined
+    group: "{{ postgres_group }}"
+    mode: "0750"
+  become: true
 
 - name: set UI admin password for testing
   set_fact:
@@ -89,17 +86,18 @@
 
 - name: set UI admin password randomly
   set_fact:
-    admin_password: "{{ random_generated_pw }}"
-  when: testkeys is not defined or not testkeys|bool
+    admin_password: "{{ randomly_generated_pwd }}"
+  when: (testkeys is not defined or not testkeys|bool) and installation_mode == 'new'
 
-- name: write admin_password password to secrets directory
+- name: write ui admin_password to secrets directory
   copy:
-    content: "{{ admin_password }}"
+    content: "{{ admin_password }}\n"
     dest: "{{ ui_admin_password_file }}"
     mode: '0600'
     owner: "{{ fworch_user }}"
     group: "{{ fworch_group }}"
-  become: yes
+  become: true
+  when: installation_mode == 'new'
 
 - name: Set admin password in ldap
   ldap_passwd:
@@ -108,6 +106,40 @@
     server_uri: "{{ openldap_url }}"
     bind_dn: "{{ openldap_superuser_dn }}"
     bind_pw: "{{ ldap_manager_pwd }}"
+  when: installation_mode == 'new'
+
+- name: set importer user password randomly
+  set_fact:
+    importer_password: "{{ randomly_generated_pwd }}"
+  when: not testkeys|bool and installation_mode == 'new'
+
+- name: write importer_password to secrets directory
+  copy:
+    content: "{{ importer_password }}\n"
+    dest: "{{ importer_password_file }}"
+    mode: '0600'
+    owner: "{{ fworch_user }}"
+    group: "{{ fworch_group }}"
+  become: true
+  when: installation_mode == 'new'
+
+# the local copy of the import pwd will be used by the importer role to copy it to the importer host(s)
+- name: fetch importer pwd to installer machine for distribution to importer machines
+  fetch:
+    src: "{{ importer_password_file }}"
+    dest: "{{ importer_password_file_on_installer }}"
+    flat: true
+    mode: '0600'
+  become: true
+
+- name: Set importer password in ldap
+  ldap_passwd:
+    dn: uid=importer,ou=tenant0,ou=operator,ou=user,{{ openldap_path }}
+    passwd: "{{ importer_password }}"
+    server_uri: "{{ openldap_url }}"
+    bind_dn: "{{ openldap_superuser_dn }}"
+    bind_pw: "{{ ldap_manager_pwd }}"
+  when: installation_mode == 'new'
 
 - name: Set {{ openldap_readonly_user_name }} password in ldap
   ldap_passwd:
@@ -116,6 +148,7 @@
     server_uri: "{{ openldap_url }}"
     bind_dn: "{{ openldap_superuser_dn }}"
     bind_pw: "{{ ldap_manager_pwd }}"
+  when: installation_mode == "new"
 
 - name: Set "{{ openldap_writer_name }}" password in ldap
   ldap_passwd:
@@ -124,6 +157,7 @@
     server_uri: "{{ openldap_url }}"
     bind_dn: "{{ openldap_superuser_dn }}"
     bind_pw: "{{ ldap_manager_pwd }}"
+  when: installation_mode == "new"
 
 - name: Set {{ audit_user }} password in ldap
   ldap_passwd:
@@ -132,8 +166,8 @@
     server_uri: "{{ openldap_url }}"
     bind_dn: "{{ openldap_superuser_dn }}"
     bind_pw: "{{ ldap_manager_pwd }}"
-  when: audit_user is defined and auditor_initial_pwd is defined
-  
+  when: audit_user is defined and auditor_initial_pwd is defined and installation_mode=='new'
+
 - name: insert admin tenant0 to database
   postgresql_query:
     db: "{{ fworch_db_name }}"
@@ -143,59 +177,39 @@
       THEN insert into tenant (tenant_name, tenant_can_view_all_devices, tenant_is_superadmin)
       values ('tenant0', true, true);
       END IF; END $do$
-  become: yes
+  become: true
   become_user: postgres
+  when: installation_mode == "new"
 
-# - name: insert admin tenant0 to device mapping - tenant0 can see all devices
-#   postgresql_query:
-#     db: "{{ fworch_db_name }}"
-#     query: >
-#       DO $do$ BEGIN IF NOT EXISTS (SELECT * FROM tenant_to_device LEFT JOIN tenant USING (tenant_id) WHERE tenant_name='tenant0')
-#         THEN INSERT INTO tenant_to_device (tenant_id, device_id) 
-#           select tenant.tenant_id, device.dev_id FROM tenant, device WHERE tenant_name='tenant0'; 
-#         END IF; 
-#       END $do$
-#   become: yes
-#   become_user: postgres
-
-- name: add connection for internal ldap
+- name: add connection for internal ldap with encrypted passwords
   postgresql_query:
     db: "{{ fworch_db_name }}"
     query: >
-      DO $do$ BEGIN IF NOT EXISTS
-      (SELECT * FROM ldap_connection WHERE ldap_server = '{{ openldap_server }}')
-      THEN INSERT INTO ldap_connection
-      (ldap_server, ldap_port, ldap_searchpath_for_users, ldap_searchpath_for_roles, ldap_searchpath_for_groups,
-      ldap_tenant_level, ldap_search_user, ldap_search_user_pwd, ldap_write_user, ldap_write_user_pwd, ldap_type)
-      VALUES ('{{ openldap_server }}', {{ openldap_port }},
+      DO $do$ BEGIN 
+      PERFORM insertLocalLdapWithEncryptedPasswords ('{{ openldap_server }}', {{ openldap_port }},
       '{{ openldap_std_user_dn }}', '{{ openldap_std_role_dn }}', '{{ openldap_std_group_dn }}',
-      1, '{{ openldap_readonly_user_dn }}', '{{ ldap_inspector_pw }}',
+      5, '{{ openldap_readonly_user_dn }}', '{{ ldap_inspector_pw }}',
       '{{ openldap_writer_dn }}', '{{ ldap_writer_pw }}', 2);
-      END IF; END $do$
-  become: yes
+      END $do$
+  become: true
   become_user: postgres
+  when: installation_mode == "new"
 
-- name: update password for local ldap connection  in case of upgrade
+- name: insert admin tenant0 to device mapping - tenant0 can see all devices
   postgresql_query:
     db: "{{ fworch_db_name }}"
     query: >
-      DO $do$ BEGIN IF EXISTS
-      (SELECT * FROM ldap_connection)
-      THEN UPDATE ldap_connection
-      SET ldap_server='{{ openldap_server }}',
-      ldap_port={{ openldap_port }}, ldap_searchpath_for_users='{{ openldap_std_user_dn }}',
-      ldap_searchpath_for_roles='{{ openldap_std_role_dn }}', ldap_searchpath_for_groups='{{ openldap_std_group_dn }}',
-      ldap_tenant_level=1,
-      ldap_search_user='{{ openldap_readonly_user_dn }}',
-      ldap_search_user_pwd='{{ ldap_inspector_pw }}',
-      ldap_write_user= '{{ openldap_writer_dn }}', ldap_write_user_pwd='{{ ldap_writer_pw }}', ldap_type=2
-      WHERE ldap_server='{{ openldap_server }}';
-      END IF; END $do$
-  become: yes
+      DO $do$ BEGIN IF NOT EXISTS (SELECT * FROM tenant_to_device LEFT JOIN tenant USING (tenant_id) WHERE tenant_name='tenant0')
+        THEN INSERT INTO tenant_to_device (tenant_id, device_id) 
+          select tenant.tenant_id, device.dev_id FROM tenant, device WHERE tenant_name='tenant0'; 
+        END IF; 
+      END $do$
+  become: true
   become_user: postgres
+  when: installation_mode=="new"
 
-- name: install dot net
-  import_tasks: middleware_install_dot_net.yml
+- name: install and run mw service
+  import_tasks: install_and_run_mw_service.yml
 
 - name: install middleware https reverse proxy
   import_tasks: mw_apache_install_and_setup.yml
@@ -206,4 +220,11 @@
 
 - name: upgrade with yaml script
   import_tasks: run-upgrades.yml
+  when: installation_mode == "upgrade"
+
+- name: finalize handler for datarecovery
+  set_fact:
+    middleware_handler_guard: stop
+  changed_when: true
+  notify: "middleware handler"
   when: installation_mode == "upgrade"
