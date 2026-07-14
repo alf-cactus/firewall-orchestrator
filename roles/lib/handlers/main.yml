@@ -1,7 +1,7 @@
 ---
 
 - name: recover backup
-  synchronize:
+  ansible.posix.synchronize:
     src: "{{ fworch_home }}/backup_lib/lib"
     dest: "{{ fworch_home }}"
   delegate_to: "{{ inventory_hostname }}"
@@ -24,3 +24,9 @@
     - "Try to upgrade {{ product_name }} later or contact the support support@cactus.de"
   listen: "lib handler"
   when: lib_handler_guard == "start"
+
+- name: Reload Chrome AppArmor profile
+  command:
+    cmd: apparmor_parser --replace --write-cache /etc/apparmor.d/chrome
+  changed_when: false
+  become: true

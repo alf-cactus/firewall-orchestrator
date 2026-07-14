@@ -1,0 +1,583 @@
+@using FWO.Compliance
+@using FWO.Data.Middleware
+@using FWO.Data.Workflow
+@using FWO.Services.Workflow
+@using FWO.Middleware.Client
+@using FWO.Report
+@using FWO.ExternalSystems.Tufin.SecureChange
+@using Newtonsoft.Json
+@using RestSharp
+@using System.Net
+@using System.Text.Json.Serialization
+
+@implements IDisposable
+
+@inject ApiConnection apiConnection
+@inject UserConfig userConfig
+@inject MiddlewareClient middlewareClient
+
+
+<PopUp Title="@(userConfig.GetText("request_fw_change"))" Show="@Display" Size=PopupSize.XLarge OnClose="Close">
+    <Body>
+        @if (Display)
+        {
+            <div class="form-group row">
+                <div class="col-sm-2">@(userConfig.GetText("last_requested")): </div>
+                <div class="col-sm-10">@(LastRequestDate)</div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-2">@(userConfig.GetText("state")): </div>
+                <div class="col-sm-10">@(UserConfig.PureLineStat(ChangeStatus))</div>
+            </div>
+            @if(TaskList.Count == 0)
+            {
+                <br>
+                <b>@(userConfig.GetText("U9026"))</b>
+            }
+            else
+            {
+                <div class="m-2">
+                    <Table class="table table-bordered th-bg-secondary table-responsive overflow-auto sticky-header" TableItem="WfReqTask" Items="TaskListSnapshot" PageSize="0" ColumnReorder="true">
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("number"))" Field="@(x => x.TaskNumber)" Sortable="true" Filterable="false" />
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("type"))" Field="@(x => x.Id)" Sortable="true" Filterable="false">
+                            <Template>
+                                @(userConfig.GetText(context.TaskType))
+                            </Template>
+                        </Column>
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("management"))" Field="@(x => x.Id)" Sortable="false" Filterable="false">
+                            <Template>
+                                @(context.OnManagement?.Name)
+                            </Template>
+                        </Column>
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("title"))" Field="@(x => x.Title)" Sortable="true" Filterable="false">
+                            <Template>
+                                @DisplayTitle(context)
+                            </Template>
+                        </Column>
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("state"))" Field="@(x => x.StateId)" Sortable="true" Filterable="false">
+                            <Template>
+                                @(RequestInProcess ? states.Name[context.StateId] : "")
+                            </Template>
+                        </Column>
+                        <Column TableItem="WfReqTask" Title="@(userConfig.GetText("ext_ticket_number"))" Field="@(x => x.Id)" Sortable="false" Filterable="false">
+                            <Template>
+                                @(context.GetAddInfoValue(AdditionalInfoKeys.ExtIcketId) ?? "")
+                            </Template>
+                        </Column>
+                        <DetailTemplate TableItem="WfReqTask">
+                            <Detail Data="@(userConfig.GetText("action") + ": " + context.RequestAction)">
+                                <span>@((MarkupString)@DisplayTaskDetails(context))</span>
+                            </Detail>
+                        </DetailTemplate>
+                    </Table>
+                </div>
+            }
+        }
+    </Body>
+    <Footer>
+        <ExecutionModeAuthorizeView Roles="@Roles.Modeller">
+            <Authorized>
+                @if (SelectedApp.Id > 0 && !WorkInProgress && !RequestInProcess && TaskList.Count > 0 && userConfig.User.Ownerships.Contains(SelectedApp.Id))
+                {
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="StartRequests">@(DisplayService.DisplayButton(userConfig, "request_fw_change", Icons.RequestFwChange))</button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-sm btn-primary" disabled>@(DisplayService.DisplayButton(userConfig, "request_fw_change", Icons.RequestFwChange))</button>
+                }
+            </Authorized>
+            <NotAuthorized>
+                <button type="button" class="btn btn-sm btn-primary" disabled>@(DisplayService.DisplayButton(userConfig, "request_fw_change", Icons.RequestFwChange))</button>
+            </NotAuthorized>
+        </ExecutionModeAuthorizeView>
+        <button type="button" class="btn btn-sm btn-secondary" @onclick="Close">@(DisplayService.DisplayButton(userConfig, "close", Icons.Close))</button>
+    </Footer>
+</PopUp>
+<InProgress Display="WorkInProgress" />
+
+
+@code
+{
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    [CascadingParameter]
+    Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public bool Display { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> DisplayChanged { get; set; }
+
+    [Parameter]
+    public FwoOwner SelectedApp { get; set; } = new();
+
+    [Parameter]
+    public List<ModellingConnection> Connections { get; set; } = [];
+
+    [Parameter]
+    public Func<WfTicket, Task> RefreshParent { get; set; } = DefaultInit.DoNothing;
+
+    [Parameter]
+    public string ChangeStatus { get; set; } = "";
+
+    [Parameter]
+    public string LastRequestDate { get; set; } = "";
+
+
+    private List<WfReqTask> TaskList = [];
+    private List<WfReqTask> TaskListSnapshot => [.. TaskList];
+    private List<IpProtocol> ipProtos = [];
+    private List<Device> Devices = [];
+    private bool WorkInProgress = false;
+    private bool FirstTry = true;
+    private bool RequestInProcess = false;
+    private bool SubscriptionsSetupComplete = false;
+    private DateTime? LastRequestStartedAt = null;
+    private WfStateDict states = new();
+    private ExtStateHandler? extStateHandler;
+    private List<GraphQlApiSubscription<List<WfReqTask>>> actTaskSubscriptions = [];
+
+    private ModellingAppZone? PlannedAppZoneDbUpdate = default;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            extStateHandler = new ExtStateHandler(apiConnection);
+            ipProtos = await apiConnection.SendQueryAsync<List<IpProtocol>>(StmQueries.getIpProtocols);
+            Devices = await apiConnection.SendQueryAsync<List<Device>>(DeviceQueries.getDeviceDetails);
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("fetch_data"), "", true);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Display && FirstTry)
+        {
+            try
+            {
+                FirstTry = false;
+                WorkInProgress = true;
+                await states.Init(apiConnection);
+                await InitTasks();
+            }
+            catch (Exception exception)
+            {
+                DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+            }
+            finally
+            {
+                WorkInProgress = false;
+            }
+        }
+    }
+
+    private async Task InitTasks()
+    {
+        try
+        {
+            if (!await GetActTicketStatus() && extStateHandler != null)
+            {
+                if (userConfig.ModIntegrationMode == ModIntegrationMode.WorkflowNotifications)
+                {
+                    List<ModellingHistoryEntry> history = await apiConnection.SendQueryAsync<List<ModellingHistoryEntry>>(ModellingQueries.getHistoryForApp, new { appId = SelectedApp.Id });
+                    ModellingNotificationRequestBuilder requestBuilder = new(userConfig, history, LastRequestStartedAt);
+                    TaskList = requestBuilder.BuildRequestTasks(Connections, SelectedApp, extStateHandler.GetInternalStateId(ExtStates.ExtReqInitialized) ?? 0);
+                }
+                else
+                {
+                    ModellingVarianceAnalysis varianceAnalysis = new(apiConnection, extStateHandler, userConfig, SelectedApp, DisplayMessageInUi);
+                    TaskList = await varianceAnalysis.AnalyseModelledConnectionsForRequest(Connections);
+                    PlannedAppZoneDbUpdate = varianceAnalysis.PlannedAppZoneDbUpdate;
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+        }
+    }
+
+    private async Task<bool> GetActTicketStatus()
+    {
+        LastRequestStartedAt = null;
+        WfTicket? intTicket = await ModellingAppHandler.GetLatestFWRequestTicket(SelectedApp, apiConnection);
+        if (intTicket != null)
+        {
+            LastRequestStartedAt = intTicket.CreationDate;
+            SetActTicketStatus(intTicket);
+            if (RequestInProcess)
+            {
+                await SubscribeTaskChanges();
+            }
+        }
+        else
+        {
+            Dispose();
+        }
+        return RequestInProcess;
+    }
+
+    private void SetActTicketStatus(WfTicket intTicket)
+    {
+        if(extStateHandler!= null)
+        {
+            intTicket.UpdateCidrsInTaskElements();
+            TaskList = [.. intTicket.Tasks];
+            RequestInProcess = extStateHandler.IsInProgress(intTicket.StateId) && (TaskList.FirstOrDefault(t => extStateHandler.IsInProgress(t.StateId)) != null);
+        }
+    }
+
+    private string DisplayTaskDetails(WfReqTask task)
+    {
+        if (task.TaskType == WfTaskType.access.ToString())
+        {
+            return userConfig.GetText("source") + ": " + DisplayNwObjects(task, ElemFieldType.source.ToString()) +
+                "<br>" + userConfig.GetText("service") + ": " + DisplayServices(task) +
+                "<br>" + userConfig.GetText("destination") + ": " + DisplayNwObjects(task, ElemFieldType.destination.ToString()) +
+                (task.Comments.Count > 0 ? "<br>" + userConfig.GetText("comment") + ": " + task.Comments.First().Comment.CommentText : "");
+        }
+        else if (task.TaskType == WfTaskType.rule_modify.ToString() || task.TaskType == WfTaskType.rule_delete.ToString())
+        {
+            return userConfig.GetText("gateway") + ": " + DisplayDevices(task) +
+                "<br>" + userConfig.GetText("rule_uid") + ": " + (task.GetRuleElements().FirstOrDefault()?.RuleUid ?? "") +
+                "<br>" + userConfig.GetText("source") + ": " + DisplayNwObjects(task, ElemFieldType.source.ToString()) +
+                (task.TaskType == WfTaskType.rule_delete.ToString() && task.Elements.Where(e => e.Field == ElemFieldType.modelled_source.ToString()).ToList().Count > 0 ?
+                    "<br>" + userConfig.GetText("modelled_source") + ": " + DisplayNwObjects(task, ElemFieldType.modelled_source.ToString()) : "") +
+                "<br>" + userConfig.GetText("service") + ": " + DisplayServices(task) +
+                "<br>" + userConfig.GetText("destination") + ": " + DisplayNwObjects(task, ElemFieldType.destination.ToString()) +
+                (task.TaskType == WfTaskType.rule_delete.ToString() && task.Elements.Where(e => e.Field == ElemFieldType.modelled_destination.ToString()).ToList().Count > 0 ?
+                    "<br>" + userConfig.GetText("modelled_destination") + ": " + DisplayNwObjects(task, ElemFieldType.modelled_source.ToString()) : "") +
+                (task.Comments.Count > 0 ? "<br>" + userConfig.GetText("comment") + ": " + task.Comments.First().Comment.CommentText : "");
+        }
+        else if (task.TaskType == WfTaskType.group_create.ToString() || task.TaskType == WfTaskType.group_modify.ToString())
+        {
+            return DisplayMembers(task);
+        }
+        else
+        {
+            return "";
+        }
+    }
+
+    private string DisplayDevices(WfReqTask task)
+    {
+        if (task.HasAllDevicesSelected())
+        {
+            return userConfig.GetText("all");
+        }
+        List<string> DevNames = [];
+        foreach (var devId in task.GetDeviceList())
+        {
+            DevNames.Add(Devices.FirstOrDefault(d => d.Id == devId)?.Name ?? "");
+        }
+        return string.Join(", ", DevNames);
+    }
+
+    private string DisplayNwObjects(WfReqTask task, string fieldType)
+    {
+        List<string> nwObjects = [];
+        foreach (var elem in task.Elements.Where(e => e.Field == fieldType))
+        {
+            if (elem.GroupName != null)
+            {
+                nwObjects.Add(elem.GroupName);
+            }
+            else
+            {
+                nwObjects.Add(DisplayBase.DisplayIpWithName(WfElementBase.ToNetworkObject(elem)));
+            }
+        }
+        return string.Join(", ", nwObjects);
+    }
+
+    private string DisplayServices(WfReqTask task)
+    {
+        List<string> services = [];
+        foreach (var elem in task.Elements.Where(e => e.Field == ElemFieldType.service.ToString()))
+        {
+            if (elem.GroupName != null)
+            {
+                services.Add(elem.GroupName);
+            }
+            else
+            {
+                IpProtocol? ipProtocol = ipProtos.Find(x => x.Id == elem.ProtoId);
+                string portRange = IpProtocol.HasPorts(ipProtocol?.Id) ? SCAccessRequestTicketTask.DisplayPortRange(elem.Port ?? 0, elem.PortEnd) + "/" : "";
+                services.Add(portRange + ipProtocol?.Name ?? "");
+            }
+        }
+        return string.Join(", ", services);
+    }
+
+    private string DisplayMembers(WfReqTask task)
+    {
+        List<string> members = [];
+        if (task.IsNetworkFlavor())
+        {
+            foreach (var elem in task.Elements)
+            {
+                members.Add($"<span class=\"{CssClass(elem)}\" >{DisplayBase.DisplayIpWithName(WfElementBase.ToNetworkObject(elem))}</span>");
+            }
+        }
+        else
+        {
+            foreach (var elem in task.Elements)
+            {
+                members.Add($"<span class=\"{CssClass(elem)}\" >{elem.Port + "/" + ipProtos.Find(x => x.Id == elem.ProtoId)?.Name}</span>");
+            }
+        }
+        return userConfig.GetText("members") + ": " + string.Join(", ", members);
+    }
+
+    private string CssClass(WfReqElement elem)
+    {
+        if (elem.RequestAction == RequestAction.create.ToString())
+        {
+            return "text-success";
+        }
+        else if (elem.RequestAction == RequestAction.addAfterCreation.ToString())
+        {
+            return "text-info";
+        }
+        else if (elem.RequestAction == RequestAction.delete.ToString())
+        {
+            return "text-danger";
+        }
+        return "";
+    }
+
+    private MarkupString DisplayTitle(WfReqTask task)
+    {
+        string taskTitle = task.Title.StripHtmlTags();
+        string encodedTitle = WebUtility.HtmlEncode(taskTitle ?? string.Empty);
+
+        if (task.TaskType == WfTaskType.rule_delete.ToString() || task.TaskType == WfTaskType.group_delete.ToString() ||
+            (task.TaskType == WfTaskType.rule_modify.ToString() || task.TaskType == WfTaskType.group_modify.ToString()) && task.Elements.Any(_ => _.RequestAction == RequestAction.delete.ToString()))
+        {
+            return new MarkupString($"<span class=\"text-danger\">{encodedTitle}</span>");
+        }
+
+        return new MarkupString(encodedTitle);
+    }
+
+    private async Task StartRequests()
+    {
+        if (WorkInProgress)
+        {
+            return;
+        }
+        WorkInProgress = true;
+        try
+        {
+            if (PlannedAppZoneDbUpdate is not null)
+            {
+                ModellingAppZoneHandler appZoneHandler = new(apiConnection, userConfig, SelectedApp, DisplayMessageInUi);
+                await appZoneHandler.UpsertAppZone(PlannedAppZoneDbUpdate);
+            }
+
+            TicketCreator ticketCreator = new(apiConnection, userConfig, authenticationStateTask!.Result.User, middlewareClient, WorkflowPhases.request, new ComplianceRequestedRulePolicyChecker(userConfig, apiConnection));
+            WfTicket intTicket = await ticketCreator.CreateTicket(SelectedApp, TaskList,
+                "Rollout modelled connections for: " + SelectedApp.Name, extStateHandler?.GetInternalStateId(ExtStates.ExtReqInitialized), "");
+            if (intTicket.Id > 0)
+            {
+                RequestInProcess = true;
+                TaskList = intTicket.Tasks;
+                await MarkConnectionsAsRequested(Connections);
+                await SaveTicketId(intTicket.Id);
+                await ModellingHandlerBase.LogChange(new LogChangeRequest
+                {
+                    ChangeType = ModellingTypes.ChangeType.InitRequests,
+                    ObjectType = ModellingTypes.ModObjectType.CommunicationProfile,
+                    ObjectId = 0,
+                    Text = $"Initialized Rollout Requests (Ticket {intTicket.Id})",
+                    ApiConnection = apiConnection,
+                    UserConfig = userConfig,
+                    ApplicationId = intTicket.Tasks.FirstOrDefault()?.Owners.FirstOrDefault()?.Owner.Id,
+                    DisplayMessageInUi = DefaultInit.DoNothing,
+                    Requester = intTicket.Requester?.Name
+                });
+                await SubscribeTaskChanges();
+                if (userConfig.ModIntegrationMode == ModIntegrationMode.WorkflowNotifications)
+                {
+                    await CreateNotificationRequests(intTicket);
+                }
+                else
+                {
+                    await CreateExtRequests(intTicket);
+                }
+                await RefreshParent(intTicket);
+                DisplayMessageInUi(null, userConfig.GetText("U9020"), userConfig.GetText("U0016"), false);
+            }
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+        }
+        finally
+        {
+            WorkInProgress = false;
+        }
+    }
+
+    private async Task MarkConnectionsAsRequested(List<ModellingConnection> Connections)
+    {
+        IEnumerable<ModellingConnection> connectionsToMark = userConfig.ModIntegrationMode == ModIntegrationMode.WorkflowNotifications
+            ? Connections.Where(connection => RequestedConnectionIds().Contains(connection.Id))
+            : Connections;
+        foreach(var conn in connectionsToMark.Where(c => !c.RequestedOnFw))
+        {
+            await apiConnection.SendQueryAsync<ReturnIdWrapper>(ModellingQueries.updateConnectionFwRequested, new { id = conn.Id });
+            conn.RequestedOnFw = true;
+        }
+    }
+
+    private HashSet<int> RequestedConnectionIds()
+    {
+        return [.. TaskList
+            .Where(task => task.TaskType == WfTaskType.access.ToString())
+            .Select(task => task.GetAddInfoIntValue(AdditionalInfoKeys.ConnId))
+            .Where(id => id != null)
+            .Select(id => id ?? 0)];
+    }
+
+    private async Task SaveTicketId(long ticketId)
+    {
+        try
+        {
+            await apiConnection.SendQueryAsync<ReturnIdWrapper>(ExtRequestQueries.addTicketId, new { ownerId = SelectedApp.Id, ticketId = ticketId });
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+        }
+    }
+
+    private async Task CreateExtRequests(WfTicket intTicket)
+    {
+        try
+        {
+            RestResponse<bool> middlewareServerResponse = await middlewareClient.AddExternalRequest(new ExternalRequestAddParameters() { TicketId = intTicket.Id });
+            if (middlewareServerResponse.StatusCode != HttpStatusCode.OK || middlewareServerResponse.Data == false)
+            {
+                DisplayMessageInUi(null, userConfig.GetText("request_fw_change"), userConfig.GetText("E9101"), true);
+                Log.WriteError("CreateExtRequest", $"Could not create External Request for Ticket {intTicket.Id.ToString()}.");
+            }
+            else
+            {
+                Log.WriteDebug("CreateExtRequest", $"External Request for Ticket {intTicket.Id.ToString()} created.");
+            }
+
+            await ModellingHandlerBase.LogChange(new LogChangeRequest
+            {
+                ChangeType = ModellingTypes.ChangeType.InitRequests,
+                ObjectType = ModellingTypes.ModObjectType.CommunicationProfile,
+                ObjectId = 0,
+                Text = "Initialized Rollout Requests",
+                ApiConnection = apiConnection,
+                UserConfig = userConfig,
+                ApplicationId = intTicket.Tasks.FirstOrDefault()?.Owners.FirstOrDefault()?.Owner.Id,
+                DisplayMessageInUi = DefaultInit.DoNothing,
+                Requester = intTicket.Requester?.Name
+            });
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+        }
+    }
+
+    private async Task CreateNotificationRequests(WfTicket intTicket)
+    {
+        await ModellingHandlerBase.LogChange(new LogChangeRequest
+        {
+            ChangeType = ModellingTypes.ChangeType.InitRequests,
+            ObjectType = ModellingTypes.ModObjectType.CommunicationProfile,
+            ObjectId = 0,
+            Text = "Initialized Rollout Notification Requests",
+            ApiConnection = apiConnection,
+            UserConfig = userConfig,
+            ApplicationId = intTicket.Tasks.FirstOrDefault()?.Owners.FirstOrDefault()?.Owner.Id,
+            DisplayMessageInUi = DefaultInit.DoNothing,
+            Requester = intTicket.Requester?.Name
+        });
+    }
+
+    private Task SubscribeTaskChanges()
+    {
+        SubscriptionsSetupComplete = false;
+
+        foreach (var task in TaskList)
+        {
+            actTaskSubscriptions.Add(apiConnection.GetSubscription<List<WfReqTask>>(HandleSubscriptionError, OnTaskUpdate, RequestQueries.subscribeTaskChanges, new { task.Id }));
+        }
+
+        SubscriptionsSetupComplete = true;
+        return Task.CompletedTask;
+    }
+
+    private async void HandleSubscriptionError(Exception exception)
+    {
+        await InvokeAsync(() => GraphqlSubscriptionExceptionHandler.Handle(exception,
+            () => DisplayMessageInUi(exception, userConfig.GetText("task"), userConfig.GetText("update_subscription_error"), true)));
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            foreach (var sub in actTaskSubscriptions)
+            {
+                sub.Dispose();
+            }
+            actTaskSubscriptions = [];
+            apiConnection.DisposeSubscriptions<GraphQlApiSubscription<List<WfReqTask>>>();
+        }
+        catch (Exception exception)
+        {
+            Log.WriteDebug("Dispose subscriptions", exception.Message);
+        }
+    }
+
+    private async void OnTaskUpdate(List<WfReqTask> tasks)
+    {
+        try
+        {
+            SetActTaskStatus(tasks.First());
+        }
+        catch (Exception exception)
+        {
+            DisplayMessageInUi(exception, userConfig.GetText("request_fw_change"), "", true);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SetActTaskStatus(WfReqTask task)
+    {
+        if (!SubscriptionsSetupComplete)
+            return;
+
+        int taskIndex = TaskList.FindIndex(t => t.Id == task.Id);
+        if (taskIndex < 0)
+        {
+            return;
+        }
+        List<WfReqTask> updatedTasks = [.. TaskList];
+        updatedTasks[taskIndex] = task;
+        TaskList = updatedTasks;
+    }
+
+    private void Close()
+    {
+        FirstTry = true;
+        Dispose();
+        Display = false;
+        DisplayChanged.InvokeAsync(Display);
+    }
+}

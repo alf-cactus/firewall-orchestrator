@@ -1,18 +1,22 @@
-﻿@using FWO.Ui.Data
-@using FWO.GlobalConstants
-@using FWO.Api.Data
+@using FWO.Ui.Data
 
 @implements IDisposable
 
 <div class="w-100 card @Class" style="border: transparent;">
     <div class="btn-group btn-group-sm w-100">
         <button type="button" class="btn btn-@Style" @onclick="ToggleCollapse"> <span class="@(show ? Icons.CollapseUp : Icons.CollapseDown)"></span> </button>
-        <button type="button" class="btn btn-sm btn-@Style disabled text-left" style="width: calc(100% - 50px) !important;" @onclick="ToggleCollapse">
-            @if (UseHtmlTitle)
-                @TitleWithHtml
-            else
-                @Title
-        </button>
+        <div class="btn btn-sm btn-@Style text-left" style="width: calc(100% - 50px) !important; opacity:0.65; cursor: default; pointer-events: none;">            
+          @if (UseHtmlTitle)
+            {
+               <div style="pointer-events: auto;">
+                    @TitleWithHtml
+               </div>
+            }
+           else
+            {
+              @Title
+            }        
+        </div>
     </div>
     <div class="@(show ? "collapse.show" : "collapse") p-2">
         @ChildContent
@@ -22,7 +26,7 @@
 @code
 {
     [CascadingParameter]
-    public CollapseState collapseState { get; set; } = new CollapseState();
+    public CollapseState? CollapseState { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "";
@@ -48,6 +52,9 @@
     [Parameter]
     public EventCallback<bool> OnOpen { get; set; }
 
+    [Parameter]
+    public string? RSBLocation { get; set; }
+
     private bool show;
     private bool invokeOnOpenAfterRender;
 
@@ -59,10 +66,10 @@
             invokeOnOpenAfterRender = false;
             if (!StartToggled)
                 invokeOnOpenAfterRender = true;
-            if (collapseState != null)
+            if (CollapseState != null)
             {
-                collapseState.OnCollapseAll += ForceCollapse;
-                collapseState.OnExpandAll += ForceExpand;
+                CollapseState.OnCollapse += onCollapse;
+                CollapseState.OnExpand += onExpand;
             }
             StateHasChanged();
         }
@@ -83,6 +90,7 @@
     {
         this.show = true;
         invokeOnOpenAfterRender = true;
+        StateHasChanged();
     }
 
     public void ToggleCollapse()
@@ -90,11 +98,29 @@
         show = !show;
         if (show)
             invokeOnOpenAfterRender = true;
+        StateHasChanged();
+
+    }
+
+    private void onCollapse(string? location)
+    {
+        if (RSBLocation == null || location != null && (location.StartsWith(RSBLocation) || RSBLocation.StartsWith(location)))
+            ForceCollapse();
+    }
+
+    private void onExpand(string? location)
+    {
+        if (RSBLocation == null || location != null && (location.StartsWith(RSBLocation) || RSBLocation.StartsWith(location)))
+            ForceExpand();
     }
 
     void IDisposable.Dispose()
     {
-        if (collapseState != null)
-            collapseState.OnCollapseAll -= ForceCollapse;
+        if (CollapseState != null && RSBLocation != null)
+        {
+            CollapseState.OnExpand -= onExpand;
+            CollapseState.OnCollapse -= onCollapse;
+        }
+
     }
 }

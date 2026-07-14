@@ -1,7 +1,4 @@
-﻿@using FWO.GlobalConstants
-@using FWO.Api.Data
-
-@typeparam ElementType
+﻿@typeparam ElementType
 
 <ul class="list-group @(StdLayout ? "mb-2" : "")">
 	@for (int i = 0; i < ElementsToAdd.Count; i++)
@@ -9,7 +6,7 @@
 		int j = i;
 		<li class="@(StdLayout ? StdClass : AltClass) d-flex justify-content-between">
 			<div class="@(StdLayout ? "" : AltElemClass)">@(Display(ElementsToAdd[i]))</div>
-			<span @onclick="() => {ElementsToAdd.Remove(ElementsToAdd[j]);AfterRemoveAction();}" class="@(StdLayout ? "" : AltButtonClass) badge bg-danger">
+			<span @onclick="() => OnRemoveElementButtonClick(j)" class="@(StdLayout ? "" : AltButtonClass) badge bg-danger">
 				<i class="@(Icons.Close) text-light"></i>
 			</span>
 		</li>
@@ -20,7 +17,7 @@
 		<li class="@(StdLayout ? StdClass : AltClass) d-flex justify-content-between">
 			<div class="@(StdLayout ? "" : AltElemClass)" style="opacity: @(ElementsToDelete.Contains(Elements[j]) ? "0.5;" : "1;")">@Display(Elements[j])</div>
 			<span @onclick="() => ToggleRemoval(j)" class="@(StdLayout ? "" : AltButtonClass) badge @(ElementsToDelete.Contains(Elements[j]) ? "bg-success" : "bg-danger")">
-				<i class="oi @(ElementsToDelete.Contains(Elements[j]) ? "oi-action-undo" : "oi-x") text-light"></i>
+				<i class="@(ElementsToDelete.Contains(Elements[j]) ? Icons.Undo : Icons.Close) text-light"></i>
 			</span>
 		</li>
 	}
@@ -42,7 +39,7 @@
 	{
 		return __builder =>
 		{
-			@(e.ToString())
+			@(e?.ToString() ?? "")
 		};
 	};
 
@@ -51,6 +48,12 @@
 
     [Parameter]
     public Func<bool> AfterRemoveAction { get; set; } = DefaultInit.DoNothingSync;
+
+	/// <summary>
+	/// Gets invoked after user removes element from the ElementsToAdd collection via button.
+	/// </summary>
+	[Parameter]
+    public EventCallback ElementsRemoved { get; set; }
 
 	private string StdClass = "bg-success-subtle list-group-item pb-2 pt-2";
 	private string AltClass = "draggable-selected pb-0 pt-0";
@@ -67,5 +70,15 @@
 		{
 			ElementsToDelete.Add(Elements[index]);
 		}
+	}
+
+	/// <summary>
+	/// Handles the click on an 'x' button of a server that is in the list of configured servers.
+	/// </summary>
+	private void OnRemoveElementButtonClick(int index)
+	{
+		ElementsToAdd.Remove(ElementsToAdd[index]);
+		AfterRemoveAction();
+		ElementsRemoved.InvokeAsync();
 	}
 }

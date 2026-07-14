@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using System.Text.Json.Serialization;
-using FWO.GlobalConstants;
-using FWO.Api.Data;
+using FWO.Basics;
+using FWO.Data.Modelling;
 
 namespace FWO.Config.Api.Data
 {
@@ -27,7 +27,7 @@ namespace FWO.Config.Api.Data
 
         public CommonAreaConfig ToConfigItem()
         {
-            return new(){ AreaId = Area.Content.Id, UseInSrc = UseInSrc, UseInDst = UseInDst};
+            return new() { AreaId = Area.Content.Id, UseInSrc = UseInSrc, UseInDst = UseInDst };
         }
     }
 }

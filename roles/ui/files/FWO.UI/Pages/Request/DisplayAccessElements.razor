@@ -1,8 +1,8 @@
-@using FWO.Api.Client
-@using FWO.Api.Client.Queries
-@using FWO.Config.Api
+@using FWO.Ui.Display
+@using FWO.Data.Flow
 
-@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}, {Roles.Auditor}, {Roles.FwAdmin}")]
+
+@attribute [Authorize(Roles = $"{Roles.Admin}, {Roles.WorkflowRolesList}, {Roles.Auditor}, {Roles.FwAdmin}")]
 
 @inject ApiConnection apiConnection
 @inject UserConfig userConfig
@@ -11,161 +11,152 @@
 <hr />
 @if(InitComplete)
 {
-    @if (EditMode && userConfig.ReqAllowObjectSearch)
+    @if (ShowAnyFlowCatalog)
     {
         <div class="bg-secondary p-2">
             <div class="form-group row col-sm-12">
                 <div class="col-sm-4">
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <div class="col-sm-9">
-                            <Dropdown ElementType="NetworkObject" @bind-SelectedElement="newSourceNetwork" ElementToString="@(n => n.Name)" Elements="nwObjects">
-                                <ElementTemplate Context="nwObject">
-                                    @nwObject.Name
-                                </ElementTemplate>
-                            </Dropdown>
+                    @if (ShowSourceFlowCatalog)
+                    {
+                        <div class="form-group row">
+                            <label class="col-sm-3">@(userConfig.GetText("object_catalog")):</label>
+                            <div class="col-sm-8">
+                                <Dropdown ElementType="NetworkObject" @bind-SelectedElement="newSourceNetwork" ElementToString="@(n => n.Name)" Elements="nwObjects" Nullable="true">
+                                    <ElementTemplate Context="nwObject">
+                                        @nwObject.Name
+                                    </ElementTemplate>
+                                </Dropdown>
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
                 <div class="col-sm-4">
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <div class="col-sm-9">
-                            <Dropdown ElementType="NetworkObject" @bind-SelectedElement="newDestinationNetwork" ElementToString="@(n => n.Name)" Elements="nwObjects">
-                                <ElementTemplate Context="nwObject">
-                                    @nwObject.Name
-                                </ElementTemplate>
-                            </Dropdown>
+                    @if (ShowDestinationFlowCatalog)
+                    {
+                        <div class="form-group row">
+                            <label class="col-sm-3">@(userConfig.GetText("object_catalog")):</label>
+                            <div class="col-sm-8">
+                                <Dropdown ElementType="NetworkObject" @bind-SelectedElement="newDestinationNetwork" ElementToString="@(n => n.Name)" Elements="nwObjects" Nullable="true">
+                                    <ElementTemplate Context="nwObject">
+                                        @nwObject.Name
+                                    </ElementTemplate>
+                                </Dropdown>
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
                 <div class="col-sm-4">
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <div class="col-sm-9">
-                            <Dropdown ElementType="NetworkService" @bind-SelectedElement="newService" ElementToString="@(s => s.Name)" Elements="nwServices">
-                                <ElementTemplate Context="nwService">
-                                    @nwService.Name
-                                </ElementTemplate>
-                            </Dropdown>
+                    @if (ShowServiceFlowCatalog)
+                    {
+                        <div class="form-group row">
+                            <label class="col-sm-3">@(userConfig.GetText("service_catalog")):</label>
+                            <div class="col-sm-8">
+                                <Dropdown ElementType="NetworkService" @bind-SelectedElement="newService" ElementToString="@(s => s.Name)" Elements="nwServices" Nullable="true">
+                                    <ElementTemplate Context="nwService">
+                                        @nwService.Name
+                                    </ElementTemplate>
+                                </Dropdown>
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
             </div>
         </div>
     }
     <div class="form-group row col-sm-12 mh-13">
-        <div class="col-sm-3">
+        <div class="col-sm-4">
             <label class="col-sm-12 col-form-label col-form-label-sm">@(userConfig.GetText("source"))*:</label>
-            @if (EditMode)
+            @if (CanEditSources && ShowManualObjects)
             {
-                @foreach(var source in Sources.Where(x => (x.NetworkId != null && x.NetworkId != 0)))
-                {
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <label>@nwObjects.FirstOrDefault(x => x.Id == source.NetworkId)?.Name</label>
-                        <button type="button" class="col-sm-1 btn btn-sm btn-secondary" @onclick:preventDefault @onclick="() => DeleteSource(source)">x</button>
-                    </div>
-                }
                 <IpSelector IpAddresses="Sources" @bind-IpsToAdd="SourcesToAdd" @bind-IpsToDelete="SourcesToDelete" WithLabel="false"/>
             }
-            else
+            else if (CanEditSources && ShowFlowObjects)
             {
-                <div class="list-group">
-                    @foreach(var source in Sources.Where(x => (x.NetworkId != null && x.NetworkId != 0)))
-                    {
-                        <div class="list-group-item border bg-secondary">
-                            <label>@nwObjects.FirstOrDefault(x => x.Id == source.NetworkId)?.Name</label>
-                        </div>
-                    }
-                    @foreach(var source in Sources.Where(x => (x.NetworkId == null || x.NetworkId == 0)))
-                    {
-                        <div class="list-group-item border bg-secondary">
-                            <label>@source.Cidr.CidrString</label>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-        <div class="col-sm-3">
-            <label for="taskDest" class="col-sm-12 col-form-label col-form-label-sm">@(userConfig.GetText("destination"))*:</label>
-            @if (EditMode)
-            {
-                @foreach(var destination in Destinations.Where(x => (x.NetworkId != null && x.NetworkId != 0)))
-                {
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <label>@nwObjects.FirstOrDefault(x => x.Id == destination.NetworkId)?.Name</label>
-                        <button type="button" class="col-sm-1 btn btn-sm btn-secondary" @onclick:preventDefault @onclick="() => DeleteDestination(destination)">x</button>
-                    </div>
-                }
-                <IpSelector IpAddresses="Destinations" @bind-IpsToAdd="DestinationsToAdd" @bind-IpsToDelete="DestinationsToDelete" WithLabel="false"/>
-            }
-            else
-            {
-                <div class="list-group">
-                    @foreach(var destination in Destinations.Where(x => (x.NetworkId != null && x.NetworkId != 0)))
-                    {
-                        <div class="list-group-item border bg-secondary">
-                            <label>@nwObjects.FirstOrDefault(x => x.Id == destination.NetworkId)?.Name</label>
-                        </div>
-                    }
-                    @foreach(var destination in Destinations.Where(x => (x.NetworkId == null || x.NetworkId == 0)))
-                    {
-                        <div class="list-group-item border bg-secondary">
-                            <label>@destination.Cidr.CidrString</label>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-        <div class="col-sm-6">
-            <label for="taskService" class="col-sm-12 col-form-label col-form-label-sm">@(userConfig.GetText("service"))*:</label>
-            @if (EditMode)
-            {
-                @foreach(var service in Services.Where(x => (x.ServiceId != null && x.ServiceId != 0)))
-                {
-                    <div class="form-group row">
-                        <label class="col-sm-2">@(userConfig.GetText("obj")):</label>
-                        <label>@nwServices.FirstOrDefault(x => x.Id == service.ServiceId)?.Name</label>
-                        <button type="button" class="col-sm-1 btn btn-sm btn-secondary" @onclick:preventDefault @onclick="() => DeleteService(service)">x</button>
-                    </div>
-                }
-                <EditList ElementType="NwServiceElement" Elements="Services.Where(x => (x.ServiceId == null || x.ServiceId == 0)).ToArray()" ElementsToAdd="ServicesToAdd" ElementsToDelete="ServicesToDelete" StdLayout="false">
+                <EditList ElementType="NwObjectElement" Elements="Sources.ToArray()" ElementsToAdd="SourcesToAdd" ElementsToDelete="SourcesToDelete" StdLayout="false">
                     <Display>
                         <div class="row">
-                            <div class="col-sm-6 border bg-transparent">@context.Port</div>
-                            <div class="col-sm-6 border bg-transparent">@(ipProtos.FirstOrDefault(p => p.Id == context.ProtoId)?.Name ?? "")</div>
+                            <div class="mh-13 col-sm-12 border bg-transparent">@DisplayNetworkElementForCatalog(context)</div>
                         </div>
                     </Display>
                 </EditList>
-                <div class="row col-sm-12 mt-1">
-                    <label class="col-sm-2">@(userConfig.GetText("port")):</label>
-                    <input type="number" class="col-sm-3" @bind="actPort" />
-                    <label class="col-sm-2">@(userConfig.GetText("protocol")):</label>
-                    <div class="col-sm-4">
-                        <Dropdown ElementType="int" @bind-SelectedElement="actProtoId"
-                                ElementToString="@(protId => ipProtos.FirstOrDefault(x => x.Id == protId)?.Name ?? "")" Elements="ipProtos.ConvertAll(x => x.Id)">
-                            <ElementTemplate Context="proto">
-                                @ipProtos.FirstOrDefault(x => x.Id == proto)?.Name
-                            </ElementTemplate>
-                        </Dropdown>
-                    </div>
-                    <button type="button" class="col-sm-1 btn btn-sm btn-success" @onclick="AddService" @onclick:preventDefault>@(ModellingHandlerBase.DisplayButton(userConfig, "add", Icons.Add))</button>
-                </div>
             }
             else
             {
                 <div class="list-group">
-                    @foreach(var service in Services.Where(x => (x.ServiceId != null && x.ServiceId != 0)))
-                    {
-                        <label class="list-group-item border bg-secondary">@((service.ServiceId != null) ? nwServices.Find(x => x.Id == service.ServiceId)?.Name : "")</label>
-                    }
-                    @foreach(var service in Services.Where(x => (x.ServiceId == null || x.ServiceId == 0)))
+                    @foreach(var source in Sources.Where(HasNetworkObjectReference))
                     {
                         <div class="list-group-item border bg-secondary">
-                            <label class="col-sm-5">@service.Port</label> / 
-                            <label class="col-sm-5">@ipProtos.Find(x => x.Id == service.ProtoId)?.Name</label>
+                            <label>@DisplayNetworkObject(source)</label>
+                        </div>
+                    }
+                    @foreach(var source in Sources.Where(x => !HasNetworkObjectReference(x)))
+                    {
+                        <div class="list-group-item border bg-secondary">
+                            <label>@DisplayNetworkElement(source)</label>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <div class="col-sm-4">
+            <label for="taskDest" class="col-sm-12 col-form-label col-form-label-sm">@(userConfig.GetText("destination"))*:</label>
+            @if (CanEditDestinations && ShowManualObjects)
+            {
+                <IpSelector IpAddresses="Destinations" @bind-IpsToAdd="DestinationsToAdd" @bind-IpsToDelete="DestinationsToDelete" WithLabel="false"/>
+            }
+            else if (CanEditDestinations && ShowFlowObjects)
+            {
+                <EditList ElementType="NwObjectElement" Elements="Destinations.ToArray()" ElementsToAdd="DestinationsToAdd" ElementsToDelete="DestinationsToDelete" StdLayout="false">
+                    <Display>
+                        <div class="row">
+                            <div class="mh-13 col-sm-12 border bg-transparent">@DisplayNetworkElementForCatalog(context)</div>
+                        </div>
+                    </Display>
+                </EditList>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach(var destination in Destinations.Where(HasNetworkObjectReference))
+                    {
+                        <div class="list-group-item border bg-secondary">
+                            <label>@DisplayNetworkObject(destination)</label>
+                        </div>
+                    }
+                    @foreach(var destination in Destinations.Where(x => !HasNetworkObjectReference(x)))
+                    {
+                        <div class="list-group-item border bg-secondary">
+                            <label>@DisplayNetworkElement(destination)</label>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <div class="col-sm-4">
+            <label for="taskService" class="col-sm-12 col-form-label col-form-label-sm">@(userConfig.GetText("service"))*:</label>
+            @if (CanEditServices && ShowManualServices)
+            {
+                <ServiceSelector Services="Services" @bind-ServicesToAdd="ServicesToAdd" @bind-ServicesToDelete="ServicesToDelete" IpProtos="IpProtos" TaskId="TaskId" WithLabel="false"/>
+            }
+            else if (CanEditServices && ShowFlowServices)
+            {
+                <EditList ElementType="NwServiceElement" Elements="Services.ToArray()" ElementsToAdd="ServicesToAdd" ElementsToDelete="ServicesToDelete" StdLayout="false">
+                    <Display>
+                        <div class="border bg-transparent">@DisplayServiceElementForCatalog(context)</div>
+                    </Display>
+                </EditList>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach(var service in Services.Where(HasServiceObjectReference))
+                    {
+                        <label class="list-group-item border bg-secondary">@DisplayNetworkService(service)</label>
+                    }
+                    @foreach(var service in Services.Where(x => !HasServiceObjectReference(x)))
+                    {
+                        <div class="list-group-item border bg-secondary">
+                            <label>@DisplayServiceElement(service)</label>
                         </div>
                     }
                 </div>
@@ -175,9 +166,7 @@
 }
 else
 {
-    <div class="spinner-border" role="status">
-        <span class="visually-hidden">@(userConfig.GetText("loading"))</span>
-    </div>
+    <Loading/>
 }
 
 @code
@@ -231,19 +220,39 @@ else
     public EventCallback<List<NwServiceElement>> ServicesToDeleteChanged { get; set; }
 
     [Parameter]
+    public List<IpProtocol> IpProtos { get; set; } = [];
+
+    [Parameter]
     public long TaskId { get; set; } = 0;
 
     [Parameter]
     public bool EditMode { get; set; } = false;
 
+    [Parameter]
+    public bool EditSources { get; set; } = false;
+
+    [Parameter]
+    public bool EditDestinations { get; set; } = false;
+
+    [Parameter]
+    public bool EditServices { get; set; } = false;
+
     private bool InitComplete = false;
-    private bool FirstTry = true;
-    private List<IpProtocol> ipProtos = [];
+    private bool CanEditSources => EditMode || EditSources;
+    private bool CanEditDestinations => EditMode || EditDestinations;
+    private bool CanEditServices => EditMode || EditServices;
+    private FlowIntegrationConfig FlowIntegration => FlowIntegrationConfig.Parse(userConfig.ReqFlowIntegration);
+    private bool ShowManualObjects => !userConfig.ReqUseFlowDb || ShowsManualSelection(FlowIntegration.SelectObjects);
+    private bool ShowManualServices => !userConfig.ReqUseFlowDb || ShowsManualSelection(FlowIntegration.SelectServices);
+    private bool ShowFlowObjects => userConfig.ReqUseFlowDb && ShowsFlowDbSelection(FlowIntegration.SelectObjects);
+    private bool ShowFlowServices => userConfig.ReqUseFlowDb && ShowsFlowDbSelection(FlowIntegration.SelectServices);
+    private bool ShowSourceFlowCatalog => CanEditSources && ShowFlowObjects;
+    private bool ShowDestinationFlowCatalog => CanEditDestinations && ShowFlowObjects;
+    private bool ShowServiceFlowCatalog => CanEditServices && ShowFlowServices;
+    private bool ShowAnyFlowCatalog => ShowSourceFlowCatalog || ShowDestinationFlowCatalog || ShowServiceFlowCatalog;
     private List<NetworkObject> nwObjects = [];
     private List<NetworkService> nwServices = [];
     
-    private int actPort = 0;
-    private int actProtoId = 0;
 
     private NetworkObject? newSourceNetworkInt = null;
     private NetworkObject? newSourceNetwork
@@ -253,7 +262,7 @@ else
         {
             if(value != null && value.Id != 0)
             {
-                Sources.Add(new NwObjectElement(){ NetworkId = value.Id, TaskId = TaskId });
+                AddSelectedNetworkElement(SourcesToAdd, BuildNetworkElement(value));
             }
             newSourceNetworkInt = null;
             StateHasChanged();
@@ -268,7 +277,7 @@ else
         {
             if(value != null && value.Id != 0)
             {
-                Destinations.Add(new NwObjectElement(){ NetworkId = value.Id, TaskId = TaskId });
+                AddSelectedNetworkElement(DestinationsToAdd, BuildNetworkElement(value));
             }
             newDestinationNetworkInt = null;
             StateHasChanged();
@@ -283,21 +292,112 @@ else
         {
             if(value != null && value.Id != 0)
             {
-                Services.Add(new NwServiceElement(){ ServiceId = value.Id, TaskId = TaskId });
+                AddSelectedServiceElement(ServicesToAdd, BuildServiceElement(value));
             }
             newServiceInt = null;
             StateHasChanged();
         }
     }
 
+    private string DisplayNetworkObject(NwObjectElement element)
+    {
+        if (!string.IsNullOrWhiteSpace(element.GroupName))
+        {
+            return element.GroupName;
+        }
+        string? catalogName = nwObjects.FirstOrDefault(nwObject => IsMatchingNetworkObject(nwObject, element))?.Name;
+        if (!string.IsNullOrWhiteSpace(catalogName))
+        {
+            return catalogName;
+        }
+        if (!string.IsNullOrWhiteSpace(element.Name))
+        {
+            return element.Name;
+        }
+        return element.FlowNetworkObjectId?.ToString()
+            ?? element.FlowNetworkGroupId?.ToString()
+            ?? element.NetworkId?.ToString()
+            ?? "";
+    }
+
+    private string DisplayNetworkElementForCatalog(NwObjectElement element)
+    {
+        return HasNetworkObjectReference(element)
+            ? DisplayNetworkObject(element)
+            : DisplayNetworkElement(element);
+    }
+
+    private string DisplayNetworkService(NwServiceElement element)
+    {
+        if (!string.IsNullOrWhiteSpace(element.GroupName))
+        {
+            return element.GroupName;
+        }
+        string? catalogName = nwServices.FirstOrDefault(service => IsMatchingNetworkService(service, element))?.Name;
+        if (!string.IsNullOrWhiteSpace(catalogName))
+        {
+            return catalogName;
+        }
+        if (!string.IsNullOrWhiteSpace(element.Name))
+        {
+            return element.Name;
+        }
+        return element.FlowServiceObjectId?.ToString()
+            ?? element.FlowServiceGroupId?.ToString()
+            ?? element.ServiceId?.ToString()
+            ?? "";
+    }
+
+    private string DisplayServiceElement(NwServiceElement element)
+    {
+        if (!string.IsNullOrEmpty(element.GroupName))
+        {
+            return element.GroupName;
+        }
+        if (!string.IsNullOrWhiteSpace(element.Name))
+        {
+            return element.Name;
+        }
+        return DisplayBase.DisplayService(element, IpProtos);
+    }
+
+    private string DisplayServiceElementForCatalog(NwServiceElement element)
+    {
+        return HasServiceObjectReference(element)
+            ? DisplayNetworkService(element)
+            : DisplayServiceElement(element);
+    }
+
+    private static string DisplayNetworkElement(NwObjectElement element)
+    {
+        if (!string.IsNullOrWhiteSpace(element.GroupName))
+        {
+            return element.GroupName;
+        }
+        if (!string.IsNullOrWhiteSpace(element.Name))
+        {
+            return element.Name;
+        }
+        return NwObjDisplay.DisplayIp(element.IpString, element.IpEndString);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            List<IpProtocol> ipProtosOrig = await apiConnection.SendQueryAsync<List<IpProtocol>>(StmQueries.getIpProtocols);
-            ipProtos = CustomSort(ipProtosOrig);
-            // nwObjects = await apiConnection.SendQueryAsync<List<NetworkObject>>(ObjectQueries.getNetworkObjects);
-            // nwServices = await apiConnection.SendQueryAsync<List<NetworkObject>>(ObjectQueries.getNetworkServices);
+            if (NeedsFlowCatalog())
+            {
+                if (NeedsNetworkFlowCatalog())
+                {
+                    List<FlowNwObject> flowNwObjects = await apiConnection.SendQueryAsync<List<FlowNwObject>>(FlowQueries.getFlowRequestNwObjectCatalog) ?? [];
+                    nwObjects = [.. flowNwObjects.Where(IsSelectable).Select(ToNetworkObject)];
+                }
+                if (NeedsServiceFlowCatalog())
+                {
+                    List<FlowSvcObject> flowSvcObjects = await apiConnection.SendQueryAsync<List<FlowSvcObject>>(FlowQueries.getFlowRequestSvcObjectCatalog) ?? [];
+                    nwServices = [.. flowSvcObjects.Where(IsSelectable).Select(ToNetworkService)];
+                }
+            }
             InitComplete = true;
         }
         catch (Exception exception)
@@ -306,62 +406,168 @@ else
         }
     }
 
-    protected override void OnParametersSet()
+    private NwObjectElement BuildNetworkElement(NetworkObject networkObject)
     {
-        if(FirstTry)
+        NwObjectElement element = new()
         {
-            FirstTry = false;
-            if(ipProtos.Count > 0)
-            {
-                actProtoId = ipProtos.First().Id;
-            }
+            NetworkId = userConfig.ReqUseFlowDb ? null : networkObject.Id,
+            FlowNetworkObjectId = userConfig.ReqUseFlowDb ? networkObject.FlowNetworkObjectId ?? networkObject.Id : null,
+            Name = networkObject.Name,
+            TaskId = TaskId
+        };
+        if (!string.IsNullOrWhiteSpace(networkObject.IP))
+        {
+            element.IpString = networkObject.IP;
         }
+        if (!string.IsNullOrWhiteSpace(networkObject.IpEnd))
+        {
+            element.IpEndString = networkObject.IpEnd;
+        }
+        return element;
     }
 
-    private List<IpProtocol> CustomSort(List<IpProtocol> ListIn)
+    private static void AddSelectedNetworkElement(List<NwObjectElement> elementsToAdd, NwObjectElement element)
     {
-        List<IpProtocol> ListOut = new List<IpProtocol>();
-        IpProtocol? tcp = ListIn.Find(x => x.Name.ToLower() == "tcp");
-        if(tcp != null)
-        {
-            ListOut.Add(tcp);
-            ListIn.Remove(tcp);
-        }
-        IpProtocol? udp = ListIn.Find(x => x.Name.ToLower() == "udp");
-        if(udp != null)
-        {
-            ListOut.Add(udp);
-            ListIn.Remove(udp);
-        }
-        IpProtocol? icmp = ListIn.Find(x => x.Name.ToLower() == "icmp");
-        if(icmp != null)
-        {
-            ListOut.Add(icmp);
-            ListIn.Remove(icmp);
-        }
-        foreach(var proto in ListIn.OrderBy(x => x.Name).ToList())
-        {
-            if (proto.Name.ToLower() != "unassigned")
-            {
-                ListOut.Add(proto);
-            }
-        }
-        return ListOut;
+        elementsToAdd.Add(element);
     }
 
-    private void AddService()
+    private NwServiceElement BuildServiceElement(NetworkService networkService)
     {
-        if (actPort > 0 && actProtoId != 0)
+        return new()
         {
-            ServicesToAdd.Add(new NwServiceElement(){ Port = actPort, ProtoId = actProtoId, TaskId = TaskId });
-			actPort = 0;
-            if(ipProtos.Count > 0)
-            {
-                actProtoId = ipProtos.First().Id;
-            }
-		}
-	}
- 
+            ServiceId = userConfig.ReqUseFlowDb ? null : networkService.Id,
+            FlowServiceObjectId = userConfig.ReqUseFlowDb ? networkService.FlowServiceObjectId ?? networkService.Id : null,
+            Name = networkService.Name,
+            Port = networkService.DestinationPort ?? 0,
+            PortEnd = networkService.DestinationPortEnd,
+            ProtoId = networkService.ProtoId ?? 0,
+            TaskId = TaskId
+        };
+    }
+
+    private static void AddSelectedServiceElement(List<NwServiceElement> elementsToAdd, NwServiceElement element)
+    {
+        elementsToAdd.Add(element);
+    }
+
+    private static bool HasNetworkObjectReference(NwObjectElement element)
+    {
+        return HasId(element.NetworkId) || HasNetworkFlowReference(element);
+    }
+
+    private static bool HasServiceObjectReference(NwServiceElement element)
+    {
+        return HasId(element.ServiceId) || HasServiceFlowReference(element);
+    }
+
+    private bool NeedsFlowCatalog()
+    {
+        return NeedsNetworkFlowCatalog() || NeedsServiceFlowCatalog();
+    }
+
+    private bool NeedsNetworkFlowCatalog()
+    {
+        return userConfig.ReqUseFlowDb
+            && (ShowFlowObjects && (CanEditSources || CanEditDestinations)
+                || Sources.Any(HasNetworkFlowReference)
+                || Destinations.Any(HasNetworkFlowReference));
+    }
+
+    private bool NeedsServiceFlowCatalog()
+    {
+        return userConfig.ReqUseFlowDb
+            && (ShowFlowServices && CanEditServices
+                || Services.Any(HasServiceFlowReference));
+    }
+
+    private static bool HasNetworkFlowReference(NwObjectElement element)
+    {
+        return HasId(element.FlowNetworkObjectId) || HasId(element.FlowNetworkGroupId);
+    }
+
+    private static bool HasServiceFlowReference(NwServiceElement element)
+    {
+        return HasId(element.FlowServiceObjectId) || HasId(element.FlowServiceGroupId);
+    }
+
+    private static bool HasId(long? id)
+    {
+        return id.HasValue && id.Value != 0;
+    }
+
+    private static bool ShowsFlowDbSelection(string selection)
+    {
+        return selection is FlowIntegrationObjectSelectionOptions.FromFlowDb or FlowIntegrationObjectSelectionOptions.Both;
+    }
+
+    private static bool ShowsManualSelection(string selection)
+    {
+        return selection is FlowIntegrationObjectSelectionOptions.Manually or FlowIntegrationObjectSelectionOptions.Both;
+    }
+
+    private static bool IsMatchingNetworkObject(NetworkObject networkObject, NwObjectElement element)
+    {
+        return HasId(element.FlowNetworkObjectId) && networkObject.FlowNetworkObjectId == element.FlowNetworkObjectId
+            || HasId(element.NetworkId) && networkObject.Id == element.NetworkId;
+    }
+
+    private static bool IsMatchingNetworkService(NetworkService networkService, NwServiceElement element)
+    {
+        return HasId(element.FlowServiceObjectId) && networkService.FlowServiceObjectId == element.FlowServiceObjectId
+            || HasId(element.ServiceId) && networkService.Id == element.ServiceId;
+    }
+
+    private static bool IsSelectable(FlowNwObject nwObject)
+    {
+        return nwObject.ShowInRequestModule && nwObject.RemovedDate == null;
+    }
+
+    private static bool IsSelectable(FlowSvcObject svcObject)
+    {
+        return svcObject.ShowInRequestModule && svcObject.RemovedDate == null;
+    }
+
+    private static NetworkObject ToNetworkObject(FlowNwObject nwObject)
+    {
+        return new()
+        {
+            Id = nwObject.Id,
+            Name = nwObject.Name ?? BuildNetworkObjectName(nwObject),
+            IP = nwObject.IpStart ?? "",
+            IpEnd = nwObject.IpEnd ?? "",
+            FlowNetworkObjectId = nwObject.Id
+        };
+    }
+
+    private NetworkService ToNetworkService(FlowSvcObject svcObject)
+    {
+        return new()
+        {
+            Id = svcObject.Id,
+            Name = !string.IsNullOrWhiteSpace(svcObject.Name) ? svcObject.Name : BuildServiceObjectName(svcObject),
+            DestinationPort = svcObject.PortStart,
+            DestinationPortEnd = svcObject.PortEnd,
+            ProtoId = svcObject.ProtoId,
+            FlowServiceObjectId = svcObject.Id
+        };
+    }
+
+    private static string BuildNetworkObjectName(FlowNwObject nwObject)
+    {
+        return string.IsNullOrWhiteSpace(nwObject.IpEnd) || nwObject.IpEnd == nwObject.IpStart
+            ? nwObject.IpStart ?? ""
+            : $"{nwObject.IpStart}-{nwObject.IpEnd}";
+    }
+
+    private string BuildServiceObjectName(FlowSvcObject svcObject)
+    {
+        string portLabel = svcObject.PortEnd.HasValue && svcObject.PortEnd != svcObject.PortStart
+            ? $"{svcObject.PortStart}-{svcObject.PortEnd}"
+            : $"{svcObject.PortStart}";
+        string protocolLabel = IpProtos.FirstOrDefault(protocol => protocol.Id == svcObject.ProtoId)?.Name ?? $"{svcObject.ProtoId}";
+        return $"{portLabel}/{protocolLabel}";
+    }
+
     private void DeleteSource(NwObjectElement obj)
     {
         Sources.Remove(obj);

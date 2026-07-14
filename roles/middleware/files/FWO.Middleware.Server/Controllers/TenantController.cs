@@ -1,16 +1,15 @@
-﻿using FWO.Config.Api;
-using FWO.GlobalConstants;
-using FWO.Api.Data;
 using FWO.Api.Client;
+using FWO.Api.Client.Queries;
+using FWO.Basics;
+using FWO.Data;
+using FWO.Data.Middleware;
 using FWO.Logging;
-using FWO.Middleware.RequestParameters;
-using FWO.Middleware.Server;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
-namespace FWO.Middleware.Controllers
+namespace FWO.Middleware.Server.Controllers
 {
     /// <summary>
 	/// Controller class for tenant api
@@ -22,9 +21,9 @@ namespace FWO.Middleware.Controllers
         private readonly List<Ldap> ldaps;
         private readonly ApiConnection apiConnection;
 
-		/// <summary>
-		/// Constructor needing ldap list and connection
-		/// </summary>
+        /// <summary>
+        /// Constructor needing ldap list and connection
+        /// </summary>
         public TenantController(List<Ldap> ldaps, ApiConnection apiConnection)
         {
             this.ldaps = ldaps;
@@ -40,8 +39,8 @@ namespace FWO.Middleware.Controllers
         [Authorize(Roles = $"{Roles.Admin}, {Roles.Auditor}, {Roles.FwAdmin}")]
         public async Task<List<TenantGetReturnParameters>> Get()
         {
-            Tenant[] tenants = await apiConnection.SendQueryAsync<Tenant[]>(FWO.Api.Client.Queries.AuthQueries.getTenants);
-            List<TenantGetReturnParameters> tenantList = new List<TenantGetReturnParameters>();
+            Tenant[] tenants = await apiConnection.SendQueryAsync<Tenant[]>(AuthQueries.getTenants);
+            List<TenantGetReturnParameters> tenantList = [];
             foreach (Tenant tenant in tenants)
             {
                 tenantList.Add(tenant.ToApiParams());
@@ -74,9 +73,9 @@ namespace FWO.Middleware.Controllers
                 // Try to add tenant in current Ldap
                 if (currentLdap.IsInternal() && currentLdap.IsWritable())
                 {
-                    await Task.Run(() =>
+                    await Task.Run(async () =>
                     {
-                        if (currentLdap.AddTenant(tenantName))
+                        if (await currentLdap.AddTenant(tenantName))
                         {
                             tenantAdded = true;
                             Log.WriteAudit("AddTenant", $"Tenant {tenantName} successfully added to {currentLdap.Host()}");
@@ -85,20 +84,20 @@ namespace FWO.Middleware.Controllers
                 }
             }
 
-            if (tenantAdded) 
+            if (tenantAdded)
             {
                 // Add also to local database table
                 try
                 {
-                    var Variables = new 
-                    { 
+                    var Variables = new
+                    {
                         name = tenant.Name,
                         project = tenant.Project,
                         comment = tenant.Comment,
                         viewAllDevices = tenant.ViewAllDevices,
                         create = DateTime.Now
                     };
-                    ReturnId[]? returnIds = (await apiConnection.SendQueryAsync<NewReturning>(FWO.Api.Client.Queries.AuthQueries.addTenant, Variables)).ReturnIds;
+                    ReturnId[]? returnIds = (await apiConnection.SendQueryAsync<ReturnIdWrapper>(AuthQueries.addTenant, Variables)).ReturnIds;
                     if (returnIds != null)
                     {
                         tenantId = returnIds[0].NewId;
@@ -144,7 +143,7 @@ namespace FWO.Middleware.Controllers
                     comment = parameters.Comment,
                     viewAllDevices = parameters.ViewAllDevices
                 };
-                ReturnId returnId = await apiConnection.SendQueryAsync<ReturnId>(FWO.Api.Client.Queries.AuthQueries.updateTenant, Variables);
+                ReturnId returnId = await apiConnection.SendQueryAsync<ReturnId>(AuthQueries.updateTenant, Variables);
                 if (returnId.UpdatedId == parameters.Id)
                 {
                     tenantUpdated = true;
@@ -179,9 +178,9 @@ namespace FWO.Middleware.Controllers
                 // Try to delete tenant in current Ldap
                 if (currentLdap.IsInternal() && currentLdap.IsWritable())
                 {
-                    await Task.Run(() =>
+                    await Task.Run(async () =>
                     {
-                        if(currentLdap.DeleteTenant(tenant.Name))
+                        if (await currentLdap.DeleteTenant(tenant.Name))
                         {
                             Log.WriteAudit("DeleteTenant", $"Tenant {tenant.Name} deleted from {currentLdap.Host()}");
                         }
@@ -193,7 +192,7 @@ namespace FWO.Middleware.Controllers
             {
                 // Delete also from local database table
                 var Variables = new { id = tenant.Id };
-                int delId = (await apiConnection.SendQueryAsync<ReturnId>(FWO.Api.Client.Queries.AuthQueries.deleteTenant, Variables)).DeletedId;
+                int delId = (await apiConnection.SendQueryAsync<ReturnId>(AuthQueries.deleteTenant, Variables)).DeletedId;
                 if (delId == tenant.Id)
                 {
                     tenantDeleted = true;

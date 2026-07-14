@@ -1,13 +1,30 @@
-﻿
+
 function scrollIntoRSBView(htmlObjId) {
-  let obj =  document.getElementById(htmlObjId)?.parentElement?.parentElement; // gets the tr element containing the obj
-  if (!obj)
-    return false;
-  obj.scrollIntoView({behavior: "smooth", block: "center"});
+    let obj =  document.getElementById(htmlObjId)?.parentElement?.parentElement; // gets the tr element containing the obj
+    if (!obj)
+    {
+        return false;
+    }
+    obj.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Expand row
+    let toggleLink = obj.previousElementSibling.querySelector("a");
+    let ariaEpended = toggleLink.getAttribute("aria-expanded");
+    if (ariaEpended == 'false')
+    {
+        toggleLink.click();
+    }       
   // Highlight the row
   obj.style.transition = "background-color 500ms linear";
   obj.style.backgroundColor = "#a4d7f5";
   // Remove highlight after 800ms
   setTimeout(() => obj.style.backgroundColor = "", 800);
   return obj.offsetParent !== null; // element visible?
+}
+
+function getCurrentUrl() {
+  return window.location.href;
+}
+
+function removeUrlFragment() {
+  history.replaceState(null, document.title, window.location.pathname + window.location.search);
 }

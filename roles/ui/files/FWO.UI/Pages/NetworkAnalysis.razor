@@ -1,10 +1,7 @@
 ﻿
 @using NetTools
 @using System.Net
-@using FWO.Api.Client.Queries
-
-@using FWO.GlobalConstants
-@using FWO.Api.Data
+@using FWO.Services
 
 @inject ApiConnection apiConnection
 @inject UserConfig userConfig
@@ -40,31 +37,27 @@
     </div>
 </form>
 <div class="btn-group mt-2">
-    <button type="button" class="btn btn-primary" @onclick="@(async () => { gwsInPath = await analyzePath(routingSourceString,routingDestinationString); })">@(userConfig.GetText("search_route"))</button>
+    <button type="button" class="btn btn-primary" @onclick="@(async () => { gwsInPath = await AnalyzePath(routingSourceString,routingDestinationString); })">@(userConfig.GetText("search_route"))</button>
     <button type="button" disabled class="btn btn-primary" @onclick="@(async () => { })">@(userConfig.GetText("search_access"))</button>
     <button type="button" class="btn btn-secondary" @onclick="@(() => { routingSourceString = ""; routingDestinationString = ""; serviceString = ""; })">@(userConfig.GetText("clear_input"))</button>
 </div>
+<InProgress Display="workInProgress" />
 
 @code
 {
     [CascadingParameter]
     Action<Exception?, string, string, bool> DisplayMessageInUi { get; set; } = DefaultInit.DoNothing;
 
-    [CascadingParameter]
-    private Task<AuthenticationState>? authenticationStateTask { get; set; }
-
     private string routingSourceString = "";
     private string routingDestinationString = "";
     private string serviceString = "";
-
     private string gwsInPath = "";
+    private bool workInProgress = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         try
         {
-            apiConnection.SetProperRole(authenticationStateTask!.Result.User, [ Roles.Admin, Roles.FwAdmin, Roles.Planner, Roles.Auditor ]);
-
             // archivedReports = (await apiConnection.SendQueryAsync<ReportFile[]>(ReportQueries.getGeneratedReports)).ToList();
         }
         catch (Exception exception)
@@ -73,16 +66,19 @@
         }
     }
 
-    protected async Task<string> analyzePath(string source, string destination)
+    private async Task<string> AnalyzePath(string source, string destination)
     {
-        if (checkIpAdresses(source, destination))
+        workInProgress = true;
+        string result = "";
+        if (CheckIpAdresses(source, destination))
         {
-            return await (new PathAnalysis(apiConnection)).getDeviceNamesForSinglePath(source, destination);
+            result = await PathAnalysis.GetDeviceNamesForSinglePath(source, destination, apiConnection);
         }
-        return "";
+        workInProgress = false;
+        return result;
     }
 
-    private bool checkIpAdresses(string source, string destination)
+    private bool CheckIpAdresses(string source, string destination)
     {
         try
         {

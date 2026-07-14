@@ -1,13 +1,12 @@
-﻿using FWO.GlobalConstants;
-using FWO.Api.Data;
+using FWO.Basics;
+using FWO.Data;
+using FWO.Data.Middleware;
 using FWO.Logging;
-using FWO.Middleware.RequestParameters;
-using FWO.Middleware.Server;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
 
-namespace FWO.Middleware.Controllers
+namespace FWO.Middleware.Server.Controllers
 {
     /// <summary>
 	/// Controller class for role api
@@ -19,9 +18,9 @@ namespace FWO.Middleware.Controllers
     {
         private readonly List<Ldap> ldaps;
 
-		/// <summary>
-		/// Constructor needing ldap list
-		/// </summary>
+        /// <summary>
+        /// Constructor needing ldap list
+        /// </summary>
         public RoleController(List<Ldap> ldaps)
         {
             this.ldaps = ldaps;
@@ -33,21 +32,21 @@ namespace FWO.Middleware.Controllers
         /// </summary>
         /// <returns>List of roles</returns>
         [HttpGet]
-        [Authorize(Roles = $"{Roles.Admin}, {Roles.Auditor}, {Roles.FwAdmin}, {Roles.Requester}, {Roles.Approver}, {Roles.Planner}, {Roles.Implementer}, {Roles.Reviewer}")]
+        [Authorize(Roles = $"{Roles.Admin}, {Roles.Auditor}, {Roles.FwAdmin}, {Roles.WorkflowRolesList}")]
         public async Task<List<RoleGetReturnParameters>> Get()
         {
             // No parameters
-            ConcurrentBag<RoleGetReturnParameters> allRoles = new ConcurrentBag<RoleGetReturnParameters>();
-            ConcurrentBag<Task> ldapRoleRequests = new ConcurrentBag<Task>();
+            ConcurrentBag<RoleGetReturnParameters> allRoles = [];
+            ConcurrentBag<Task> ldapRoleRequests = [];
 
             foreach (Ldap currentLdap in ldaps)
             {
                 if (currentLdap.HasRoleHandling())
                 {
-                    ldapRoleRequests.Add(Task.Run(() =>
+                    ldapRoleRequests.Add(Task.Run(async () =>
                     {
                         // if current Ldap has roles stored: Get all roles from current Ldap
-                        List<RoleGetReturnParameters> currentRoles = currentLdap.GetAllRoles();
+                        List<RoleGetReturnParameters> currentRoles = await currentLdap.GetAllRoles();
                         foreach (RoleGetReturnParameters role in currentRoles)
                             allRoles.Add(role);
                     }));
@@ -57,7 +56,7 @@ namespace FWO.Middleware.Controllers
             await Task.WhenAll(ldapRoleRequests);
 
             // Return status and result
-            return allRoles.ToList();
+            return [.. allRoles];
         }
 
         /// <summary>
@@ -74,16 +73,16 @@ namespace FWO.Middleware.Controllers
         public async Task<bool> AddUser([FromBody] RoleAddDeleteUserParameters parameters)
         {
             bool userAdded = false;
-            List<Task> ldapRoleRequests = new List<Task>();
+            List<Task> ldapRoleRequests = [];
 
             foreach (Ldap currentLdap in ldaps)
             {
                 // Try to add user to role in current Ldap
                 if (currentLdap.IsWritable() && currentLdap.HasRoleHandling())
                 {
-                    ldapRoleRequests.Add(Task.Run(() =>
+                    ldapRoleRequests.Add(Task.Run(async () =>
                     {
-                        if (currentLdap.AddUserToEntry(parameters.UserDn, parameters.Role))
+                        if (await currentLdap.AddUserToEntry(parameters.UserDn, parameters.Role))
                         {
                             userAdded = true;
                             Log.WriteAudit("AddUserToRole", $"user {parameters.UserDn} successfully added to role {parameters.Role} in {currentLdap.Host()}");
@@ -112,16 +111,16 @@ namespace FWO.Middleware.Controllers
         public async Task<bool> RemoveUser([FromBody] RoleAddDeleteUserParameters parameters)
         {
             bool userRemoved = false;
-            List<Task> ldapRoleRequests = new List<Task>();
+            List<Task> ldapRoleRequests = [];
 
             foreach (Ldap currentLdap in ldaps)
             {
                 // Try to remove user from role in current Ldap
                 if (currentLdap.IsWritable() && currentLdap.HasRoleHandling())
                 {
-                    ldapRoleRequests.Add(Task.Run(() =>
+                    ldapRoleRequests.Add(Task.Run(async () =>
                     {
-                        if (currentLdap.RemoveUserFromEntry(parameters.UserDn, parameters.Role))
+                        if (await currentLdap.RemoveUserFromEntry(parameters.UserDn, parameters.Role))
                         {
                             userRemoved = true;
                             Log.WriteAudit("RemoveUserFromRole", $"Removed user {parameters.UserDn} from {parameters.Role} in {currentLdap.Host()}");

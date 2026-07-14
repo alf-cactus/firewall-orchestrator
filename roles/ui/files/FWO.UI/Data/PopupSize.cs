@@ -1,13 +1,13 @@
-
-
 namespace FWO.Ui.Services
 {
     public enum PopupSize
     {
-        FullScreenWidth,
+        Auto,
+        FullScreen,
         XLarge,
         Large,
         Medium,
-        Small
+        Small,
+        XSmall
     }
 }

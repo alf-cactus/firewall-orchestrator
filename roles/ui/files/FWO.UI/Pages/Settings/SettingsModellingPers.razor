@@ -1,7 +1,4 @@
-﻿@using FWO.Api.Client
-@using FWO.Config.Api
-@using FWO.Config.Api.Data
-@using System.Text.Json
+﻿@using System.Text.Json
 @using FWO.Ui.Pages.NetworkModelling
 
 @page "/settings/modellingpersonal"
@@ -27,21 +24,19 @@
                 <input type="number" min="0" class="col-sm-3" @bind="configData!.OverviewDisplayLines" />
             </div>
             <div class="row col-sm-4" data-toggle="tooltip" title="@(userConfig.PureLine("H5618"))">
-                <label class="col-form-label col-sm-8">@(userConfig.GetText("modIconify")):</label>
+                <label for="cbx_modelling_pers_iconify" class="col-form-label col-sm-8">@(userConfig.GetText("modIconify")):</label>
                 <div class="col-sm-2">
-                    <input type="checkbox" class="w-100" @bind="configData!.ModIconify">
+                    <input id="cbx_modelling_pers_iconify" type="checkbox" class="w-100" @bind="configData!.ModIconify">
                 </div>
             </div>
-        </div>
+        </div>        
     </form>
     <hr />
-    <button type="button" class="btn btn-sm btn-primary" @onclick="Save" @onclick:preventDefault>@(userConfig.GetText("save"))</button>
+    <button type="button" class="btn btn-sm btn-primary" @onclick="Save" @onclick:preventDefault>@(DisplayService.DisplayButton(userConfig, "save", Icons.Save))</button>
 }
 else
 {
-    <div class="spinner-border" role="status">
-        <span class="visually-hidden">@(userConfig.GetText("loading"))</span>
-    </div>
+    <Loading/>
 }
 
 
@@ -75,7 +70,7 @@ else
             }
             else
             {
-                throw new Exception("Data saved before loaded. This should be impossible.");
+                throw new ArgumentException("Data saved before loaded. This should be impossible.");
             }
         }
         catch (Exception exception)

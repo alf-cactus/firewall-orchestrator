@@ -1,8 +1,0 @@
-query getCommonServices{
-  modelling_connection (where: { common_service: { _eq: true } } order_by: { name: asc }){
-    ...connectionDetails
-    owner{
-      name
-    }
-  }
-}
