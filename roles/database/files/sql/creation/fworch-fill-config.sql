@@ -185,3 +185,4 @@ INSERT INTO config (config_key, config_value, config_user) VALUES ('refreshToken
 INSERT INTO config (config_key, config_value, config_user) VALUES ('refreshTokenLifetimeUnit', 'Days', 0);
 INSERT INTO config (config_key, config_value, config_user) VALUES ('pathAnalysisAlgorithm', '1', 0);
 INSERT INTO config (config_key, config_value, config_user) VALUES ('allowFullRollback', 'false', 0);
+INSERT INTO config (config_key, config_value, config_user) VALUES ('designatedZoneMatrix', 0, 0);
