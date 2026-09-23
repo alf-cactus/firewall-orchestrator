@@ -1,0 +1,7 @@
+query getNetworkZoneDeviceIpRangeInternet ($matrixId: Int!) {
+  network_zone_device_ip_range_internet (where: { criterion_id: {_eq: $matrixId} }) {
+    dev_id
+    ip_range_id
+    order_to_internet
+  }
+}
