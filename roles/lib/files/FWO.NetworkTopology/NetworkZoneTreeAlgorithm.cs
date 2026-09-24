@@ -32,30 +32,57 @@ namespace FWO.NetworkTopology
         public int DestinationZoneId { get; init; }
         public List<PathDevice> Devices { get; init; } = [];
     }
-    public class NetworkZoneTreeAlgorithm(MatrixData matrixData)
+    public class NetworkZoneTreeAlgorithm
     {
+        /// <summary>One ip range of the matrix together with its parsed address range.</summary>
+        private sealed record ParsedIpRange(NetworkZoneIpRange Row, IPAddressRange Range);
+        private readonly MatrixData matrixData;
+        private readonly List<ParsedIpRange> parsedIpRanges = [];
+        public NetworkZoneTreeAlgorithm(MatrixData matrixData)
+        {
+            this.matrixData = matrixData;
+            foreach (NetworkZoneIpRange zoneRange in matrixData.IpRanges)
+            {
+                parsedIpRanges.Add(new ParsedIpRange(zoneRange, ToRange(zoneRange)));
+            }
+        }
 
         public List<ZonePathSegment> FindDeviceInPath(QueryInput input)
         {
-            LookupInputZones(input.Sources);
+            List<NetworkZoneIpRange> sourceRanges = LookupRelevantRanges(input.Sources);
+            List<NetworkZoneIpRange> destinationRanges = LookupRelevantRanges(input.Destinations);
+            List <ZonePathSegment> CalculatePaths(sourceRanges, destinationRanges);
         }
 
-        private List<int> LookupInputZones(List<IPAddressRange> inputRanges)
+        private List<NetworkZoneIpRange> LookupRelevantRanges(List<IPAddressRange> inputRanges)
         {
-            List<int> zoneList = [];
-            foreach (NetworkZoneIpRange zoneRange in matrixData.IpRanges)
+            List<NetworkZoneIpRange> relevantRanges = [];
+            foreach (ParsedIpRange zoneRange in parsedIpRanges)
             {
                 foreach (IPAddressRange inputRange in inputRanges)
                 {
-                    if (IpOperations.RangeOverlapExists(ToRange(zoneRange), inputRange))
+                    if (IpOperations.RangeOverlapExists(zoneRange.Range, inputRange))
                     {
-                        zoneList.Add(zoneRange.NetworkZoneId);
+                        relevantRanges.Add(zoneRange.Row);
                         break;
                     }
                 }
             }
-            return zoneList;
+            return relevantRanges;
         }
+
+        private List <ZonePathSegment> CalculatePaths(
+            List<NetworkZoneIpRange> sourceRanges, List<NetworkZoneIpRange> destinationRanges)
+        {
+            foreach (NetworkZoneIpRange sourceRange in sourceRanges)
+            {
+                foreach (NetworkZoneIpRange destinationRange in destinationRanges)
+                {
+                    
+                }
+            }
+        }
+        
 
         private static IPAddressRange ToRange(NetworkZoneIpRange ipRange) =>
             new(IPAddressRange.Parse(ipRange.IpRangeStart).Begin,
