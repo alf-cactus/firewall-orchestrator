@@ -9,13 +9,7 @@ namespace FWO.Services.PathAnalysis
 {
     public class NetworkZoneTreePathAnalyzer(ApiConnection apiConnection, GlobalConfig globalConfig) : IPathAnalyzer
     {
-        private sealed record MatrixData
-        {
-            public List<ComplianceNetworkZone> Zones { get; init; } = [];
-            public List<NetworkZoneIpRange> IpRanges { get; init; } = [];
-            public List<NetworkZoneDeviceIpRange> RootPaths { get; init; } = [];
-            public List<NetworkZoneDeviceIpRange> InternetPaths { get; init; } = [];
-        }
+        
         public async Task<PathAnalysisResult> AnalyzeAsync(PathAnalysisRequest request)
         {
             long matrixId = request.MatrixId ?? globalConfig.DesignatedZoneMatrixId;

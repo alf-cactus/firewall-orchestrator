@@ -15,15 +15,6 @@ namespace FWO.Services.PathAnalysis
         /// If omitted for NZT algo, then DesignatedZoneMatrixId is used when set. </summary>
         public long? MatrixId { get; init; }
     }
-    /// <summary>One firewall device found on a path.</summary>
-    public sealed record PathDevice
-    {
-        /// <summary>Device id as stored in device.dev_id.</summary>
-        public int Id { get; init; }
-
-        /// <summary>Device name as stored in device.dev_name.</summary>
-        public string Name { get; init; } = "";
-    }
     public sealed class PathAnalysisResult
     {
         /// <summary>Id of Algorithm in path_analysis_algorithm.</summary>
