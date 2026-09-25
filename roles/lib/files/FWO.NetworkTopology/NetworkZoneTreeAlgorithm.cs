@@ -1,6 +1,7 @@
 using FWO.Data;
 using FWO.Basics;
 using NetTools;
+using System.Net;
 
 namespace FWO.NetworkTopology
 {
@@ -26,10 +27,27 @@ namespace FWO.NetworkTopology
         /// <summary>Device name as stored in device.dev_name.</summary>
         public string Name { get; init; } = "";
     }
-    public sealed record ZonePathSegment
+    /// <summary>Information about zones in PathSegment.</summary>
+    public enum ZoneKind
     {
-        public int SourceZoneId { get; init; }
-        public int DestinationZoneId { get; init; }
+        /// <summary>A zone configured in the matrix.</summary>
+        Configured,
+        /// <summary>The auto calculated internet zone.</summary>
+        Internet,
+        /// <summary>The auto calculated catch-all zone for internal addresses no zone covers.</summary>
+        UndefinedInternal
+    }
+    /// <summary>Source or destination of a path.</summary>
+    public sealed record PathEndpoint
+    {
+        public int IpRangeId { get; init; }
+        public int ZoneId { get; init; }
+        public ZoneKind ZoneKind { get; init; }
+    }
+    public sealed record PathSegment
+    {
+        public PathEndpoint Source { get; init; } = new();
+        public PathEndpoint Destination { get; init; } = new();
         public List<PathDevice> Devices { get; init; } = [];
     }
     public class NetworkZoneTreeAlgorithm
@@ -38,20 +56,53 @@ namespace FWO.NetworkTopology
         private sealed record ParsedIpRange(NetworkZoneIpRange Row, IPAddressRange Range);
         private readonly MatrixData matrixData;
         private readonly List<ParsedIpRange> parsedIpRanges = [];
+        private readonly int? internetZoneId;
+        private readonly int? undefinedInternalZoneId;
+        private readonly Dictionary<int, List<PathDevice>> rootPathByIpRangeId;
+        private readonly Dictionary<int, List<PathDevice>> internetPathByIpRangeId;
+
         public NetworkZoneTreeAlgorithm(MatrixData matrixData)
         {
             this.matrixData = matrixData;
+            internetZoneId = matrixData.Zones.FirstOrDefault(zone => zone.IsAutoCalculatedInternetZone)?.Id;
+            undefinedInternalZoneId = matrixData.Zones.FirstOrDefault(zone => zone.IsAutoCalculatedUndefinedInternalZone)?.Id;
+
+            //ComplianceNetworkZone? internetZone = matrixData.Zones.FirstOrDefault(zone => zone.IsAutoCalculatedInternetZone);
+            //ComplianceNetworkZone? undefinedInternalZone = matrixData.Zones.FirstOrDefault(zone => zone.IsAutoCalculatedUndefinedInternalZone);
+
             foreach (NetworkZoneIpRange zoneRange in matrixData.IpRanges)
             {
                 parsedIpRanges.Add(new ParsedIpRange(zoneRange, ToRange(zoneRange)));
             }
+
+            rootPathByIpRangeId = [];
+            foreach (NetworkZoneDeviceIpRange row in matrixData.RootPaths.OrderBy(row => row.OrderToRoot))
+            {
+                if (!rootPathByIpRangeId.TryGetValue(row.IpRangeId, out List<PathDevice>? devices))
+                {
+                    devices = [];
+                    rootPathByIpRangeId[row.IpRangeId] = devices;
+                }
+                devices.Add(new PathDevice { Id = row.DeviceId, Name = row.Device?.Name ?? "" });
+            }
+
+            internetPathByIpRangeId = [];
+            foreach (NetworkZoneDeviceIpRange row in matrixData.InternetPaths.OrderBy(row => row.OrderToInternet))
+            {
+                if (!internetPathByIpRangeId.TryGetValue(row.IpRangeId, out List<PathDevice>? devices))
+                {
+                    devices = [];
+                    internetPathByIpRangeId[row.IpRangeId] = devices;
+                }
+                devices.Add(new PathDevice { Id = row.DeviceId, Name = row.Device?.Name ?? "" });
+            }
         }
 
-        public List<ZonePathSegment> FindDeviceInPath(QueryInput input)
+        public List<PathSegment> FindDeviceInPath(QueryInput input)
         {
             List<NetworkZoneIpRange> sourceRanges = LookupRelevantRanges(input.Sources);
             List<NetworkZoneIpRange> destinationRanges = LookupRelevantRanges(input.Destinations);
-            List <ZonePathSegment> CalculatePaths(sourceRanges, destinationRanges);
+            List <PathSegment> CalculatePaths(sourceRanges, destinationRanges);
         }
 
         private List<NetworkZoneIpRange> LookupRelevantRanges(List<IPAddressRange> inputRanges)
@@ -71,18 +122,65 @@ namespace FWO.NetworkTopology
             return relevantRanges;
         }
 
-        private List <ZonePathSegment> CalculatePaths(
+        private List <PathSegment> CalculatePaths(
             List<NetworkZoneIpRange> sourceRanges, List<NetworkZoneIpRange> destinationRanges)
         {
-            foreach (NetworkZoneIpRange sourceRange in sourceRanges)
+            List<PathSegment> segments = [];
+            List<PathEndpoint> destinationEndpoints = [.. destinationRanges.Select(ToEndpoint)];
+            List<PathEndpoint> sourceEndpoints = [.. sourceRanges.Select(ToEndpoint)];
+            
+            foreach (PathEndpoint sourceEndpoint in sourceEndpoints)
             {
-                foreach (NetworkZoneIpRange destinationRange in destinationRanges)
+                foreach (PathEndpoint destinationEndpoint in destinationEndpoints)
                 {
-                    
+                    segments.Add(new PathSegment
+                    {
+                        Source = sourceEndpoint,
+                        Destination = destinationEndpoint,
+                        Devices = FindDevices(sourceEndpoint, destinationEndpoint)
+                    });
                 }
             }
+            return segments;
         }
         
+        private PathEndpoint ToEndpoint(NetworkZoneIpRange range)
+        {
+            return new PathEndpoint
+            {
+                IpRangeId = range.Id,
+                ZoneId = range.NetworkZoneId,
+                ZoneKind = ClassifyZone(range.NetworkZoneId)
+            };
+        }
+
+        private ZoneKind ClassifyZone(int zoneId)
+        {
+            if (zoneId == internetZoneId) return ZoneKind.Internet;
+            if (zoneId == undefinedInternalZoneId) return ZoneKind.UndefinedInternal;
+            return ZoneKind.Configured;
+        }
+
+        private List<PathDevice> FindDevices(PathEndpoint sourceEndpoint, PathEndpoint destinationEndpoint)
+        {
+            if (sourceEndpoint.ZoneKind == ZoneKind.UndefinedInternal || destinationEndpoint.ZoneKind == ZoneKind.UndefinedInternal)
+            {
+                return [];
+            }
+            else if (sourceEndpoint.ZoneKind == ZoneKind.Internet && destinationEndpoint.ZoneKind == ZoneKind.Internet)
+            {
+                return [];
+            }
+            else if (sourceEndpoint.ZoneKind == ZoneKind.Internet)
+            {
+                return internetPathByIpRangeId[destinationEndpoint.IpRangeId];
+            }
+            else if (destinationEndpoint.ZoneKind == ZoneKind.Internet)
+            {
+                return internetPathByIpRangeId[sourceEndpoint.IpRangeId];
+            }
+            //hier weiter mitkürzung
+        }
 
         private static IPAddressRange ToRange(NetworkZoneIpRange ipRange) =>
             new(IPAddressRange.Parse(ipRange.IpRangeStart).Begin,
