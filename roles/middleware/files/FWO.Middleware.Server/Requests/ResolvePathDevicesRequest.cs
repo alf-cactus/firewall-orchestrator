@@ -5,42 +5,45 @@ using System.Text.Json.Serialization;
 namespace FWO.Middleware.Server.Requests;
 
 /// <summary>
-/// Represents the GetAuditProofCriticalChangesRequest type.
+/// Represents the request body of the path device resolution. It names the firewall devices that lie on
+/// the paths between every source and every destination address block.
 /// </summary>
 /// <remarks>
-/// The authoritative description of every key is kept in
-/// <see cref="GetAuditProofCriticalChangesValidationSchema"/> so API documentation and validation help text
-/// cannot diverge. The XML documentation below repeats it for the generated OpenAPI document.
+/// The authoritative description of every key is kept in <c>ResolvePathDevicesValidationSchema</c> so
+/// API documentation and validation help text cannot diverge. The XML documentation below repeats it for
+/// the generated OpenAPI document.
 /// </remarks>
 public sealed class ResolvePathDevicesRequest : IRequestWithRootAdditionalData
 {
     private ResolvePathDevicesOptions options = new();
 
     /// <summary>
-    /// Gets or sets the database id of the workflow ticket whose audit proof critical changes are returned.
-    /// Required and greater than 0.
+    /// Gets or sets the address blocks the paths start at. Required, must contain at least one entry.
+    /// Every source is combined with every destination.
     /// </summary>
     /// <remarks>
-    /// Nullable rather than marked with <see cref="JsonRequiredAttribute"/> or <c>required</c>: both of
-    /// those make the deserializer throw on the missing key, before validation runs, so the caller
-    /// would get that one error on its own instead of every error of the request together. A nullable
-    /// value type keeps the key optional for the deserializer while still telling an omitted key
-    /// (null) apart from a supplied zero, which is what an unannotated <c>long</c> could not do and
-    /// what under-posting turns on.
-    /// <para>
-    /// <see cref="OpenApiRequiredAttribute"/> restores the required marker in the generated schema,
-    /// so the documentation and generated clients still see the key as mandatory.
-    /// </para>
+    /// Nullable rather than marked with <see cref="JsonRequiredAttribute"/> or <c>required</c>: both make
+    /// the deserializer throw on a missing key before validation runs, so the caller would get that one
+    /// error instead of every error of the request together. Null tells an omitted key apart from an
+    /// empty list. <see cref="OpenApiRequiredAttribute"/> restores the required marker in the generated schema.
     /// </remarks>
     [OpenApiRequired]
     [JsonPropertyName("sources")]
-    public List<>? Sources { get; set; }
-    [JsonPropertyName("destinations")]
-    public List<>? Destinations { get; set; }
+    public List<IpRangeOrNetworkRequest>? Sources { get; set; }
 
     /// <summary>
-    /// Gets or sets the optional output options. Defaults to an empty object, which applies no
-    /// restriction beyond the ticket. An explicit <c>null</c> is treated like the default.
+    /// Gets or sets the address blocks the paths end at. Required, must contain at least one entry.
+    /// Every destination is combined with every source.
+    /// </summary>
+    /// <remarks>Nullable for the same reason as <see cref="Sources"/>.</remarks>
+    [OpenApiRequired]
+    [JsonPropertyName("destinations")]
+    public List<IpRangeOrNetworkRequest>? Destinations { get; set; }
+
+    //// <summary>
+    /// Gets or sets the optional analysis and output options. Defaults to an empty object, which uses the
+    /// configured algorithm and zone matrix and returns every device found. An explicit <c>null</c> is
+    /// treated like the default.
     /// </summary>
     [JsonPropertyName("options")]
     public ResolvePathDevicesOptions Options
@@ -58,7 +61,7 @@ public sealed class ResolvePathDevicesRequest : IRequestWithRootAdditionalData
 }
 
 /// <summary>
-/// Represents the optional output options of the audit proof critical changes lookup.
+/// Represents the optional analysis and output options of the path device resolution.
 /// </summary>
 public sealed class ResolvePathDevicesOptions : IRequestWithAdditionalData
 {
