@@ -258,7 +258,7 @@ internal class IpRangeOrNetworkParserTest
 
     private static bool Parse(string? start, string? end, string? network, out IPAddressRange? range, out string? error)
     {
-        IpRangeOrNetworkRequest ipBlock = new() { IpStart = start, IpEnd = end, IpNetwork = network };
+        AddressInputRequest ipBlock = new() { IpStart = start, IpEnd = end, IpNetwork = network };
         return IpRangeOrNetworkParser.TryParse(ipBlock, out range, out error);
     }
 }

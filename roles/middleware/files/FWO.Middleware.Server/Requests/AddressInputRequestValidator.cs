@@ -3,10 +3,10 @@ using FWO.Middleware.Server.Responses;
 namespace FWO.Middleware.Server.Requests;
 
 /// <summary>
-/// Validates one <see cref="IpRangeOrNetworkRequest"/> of a request and reports every error under its request path.
+/// Validates one <see cref="AddressInputRequest"/> of a request and reports every error under its request path.
 /// The address rules themselves live in <see cref="IpRangeOrNetworkParser"/>.
 /// </summary>
-public static class IpRangeOrNetworkRequestValidator
+public static class AddressInputRequestValidator
 {
     private static readonly List<RequestKeyDefinition> kKeys =
     [
@@ -26,7 +26,7 @@ public static class IpRangeOrNetworkRequestValidator
     /// <param name="ipBlock">The block to validate; null when the caller sent null as list element.</param>
     /// <param name="path">Request path of the block, for example <c>sources[2]</c>.</param>
     /// <param name="result">Error collection the errors are added to.</param>
-    public static void Validate(IpRangeOrNetworkRequest? ipBlock, string path, RequestValidationErrorResponse result)
+    public static void Validate(AddressInputRequest? ipBlock, string path, RequestValidationErrorResponse result)
     {
         if (ipBlock == null)
         {

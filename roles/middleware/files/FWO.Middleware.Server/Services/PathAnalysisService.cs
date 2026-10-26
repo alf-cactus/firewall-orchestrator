@@ -68,14 +68,14 @@ public sealed class PathAnalysisService
     /// The request validator has already rejected missing lists, null elements and every invalid block, so a
     /// failure here is a programming error and not the caller's fault; it surfaces as a server error.
     /// </remarks>
-    private static List<IPAddressRange> ToRanges(List<IpRangeOrNetworkRequest?>? ipBlocks)
+    private static List<IPAddressRange> ToRanges(List<AddressInputRequest?>? ipBlocks)
     {
         List<IPAddressRange> ranges = [];
         ipBlocks ??= [];
 
         for (int index = 0; index < ipBlocks.Count; index++)
         {
-            IpRangeOrNetworkRequest? ipBlock = ipBlocks[index]
+            AddressInputRequest? ipBlock = ipBlocks[index]
                 ?? throw new InvalidOperationException($"IP block at index {index} passed validation but is null.");
             if (!IpRangeOrNetworkParser.TryParse(ipBlock, out IPAddressRange? range, out string? error))
             {

@@ -145,7 +145,7 @@ public static class ResolvePathDevicesRequestValidator
     /// <summary>
     /// Rejects a missing, empty or oversized list and validates every entry under its own request path.
     /// </summary>
-    private static void ValidateIpBlockList(List<IpRangeOrNetworkRequest?>? ipBlocks, string path, RequestValidationErrorResponse result)
+    private static void ValidateIpBlockList(List<AddressInputRequest?>? ipBlocks, string path, RequestValidationErrorResponse result)
     {
         if (ipBlocks == null)
         {
@@ -163,7 +163,7 @@ public static class ResolvePathDevicesRequestValidator
         }
         for (int index = 0; index < ipBlocks.Count; index++)
         {
-            IpRangeOrNetworkRequestValidator.Validate(ipBlocks[index], $"{path}[{index}]", result);
+            AddressInputRequestValidator.Validate(ipBlocks[index], $"{path}[{index}]", result);
         }
     }
 

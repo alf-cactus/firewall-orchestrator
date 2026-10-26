@@ -6,7 +6,7 @@ using FWO.Basics;
 namespace FWO.Middleware.Server.Requests;
 
 /// <summary>
-/// Parses an <see cref="IpRangeOrNetworkRequest"/> into an <see cref="IPAddressRange"/> using the rules of the
+/// Parses an <see cref="AddressInputRequest"/> into an <see cref="IPAddressRange"/> using the rules of the
 /// request contract: either an inclusive range (<c>ipStart</c> and <c>ipEnd</c>) or a CIDR network
 /// (<c>ipNetwork</c>), never both. Shared by request validators, which report the error, and services, which
 /// use the range, so that both apply the same rules.
@@ -30,7 +30,7 @@ public static class IpRangeOrNetworkParser
     /// <param name="range">The inclusive address range of the block; null when parsing failed.</param>
     /// <param name="error">Why the block is invalid, without a subject; null when parsing succeeded.</param>
     /// <returns>True when the block is a valid range or network.</returns>
-    public static bool TryParse(IpRangeOrNetworkRequest ipBlock, out IPAddressRange? range, out string? error)
+    public static bool TryParse(AddressInputRequest ipBlock, out IPAddressRange? range, out string? error)
     {
         bool hasStart = !string.IsNullOrWhiteSpace(ipBlock.IpStart);
         bool hasEnd = !string.IsNullOrWhiteSpace(ipBlock.IpEnd);

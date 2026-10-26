@@ -11,7 +11,7 @@ namespace FWO.Test;
 /// </summary>
 [TestFixture]
 [Parallelizable]
-internal class IpRangeOrNetworkRequestValidatorTest
+internal class AddressInputRequestValidatorTest
 {
     private const string kPath = "sources[2]";
 
@@ -83,19 +83,19 @@ internal class IpRangeOrNetworkRequestValidatorTest
     [Test]
     public void Keys_ListsTheThreeBlockKeys()
     {
-        Assert.That(IpRangeOrNetworkRequestValidator.Keys.Select(key => key.JsonName),
+        Assert.That(AddressInputRequestValidator.Keys.Select(key => key.JsonName),
             Is.EquivalentTo(new List<string> { "ipStart", "ipEnd", "ipNetwork" }));
     }
 
-    private static RequestValidationErrorResponse Validate(IpRangeOrNetworkRequest? ipBlock)
+    private static RequestValidationErrorResponse Validate(AddressInputRequest? ipBlock)
     {
         RequestValidationErrorResponse result = new();
-        IpRangeOrNetworkRequestValidator.Validate(ipBlock, kPath, result);
+        AddressInputRequestValidator.Validate(ipBlock, kPath, result);
         return result;
     }
 
-    private static IpRangeOrNetworkRequest Deserialize(string json)
+    private static AddressInputRequest Deserialize(string json)
     {
-        return JsonSerializer.Deserialize<IpRangeOrNetworkRequest>(json)!;
+        return JsonSerializer.Deserialize<AddressInputRequest>(json)!;
     }
 }
