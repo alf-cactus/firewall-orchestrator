@@ -68,8 +68,9 @@ internal class OpenApiRequiredSchemaTransformerTest
         Assert.That(request.TicketId, Is.Null);
     }
 
-    [Test]
-    public async Task AddressInputsPublishThreeExclusiveRepresentationsAndTwoItemRange()
+    [TestCase(typeof(GetFlowComplianceStateRequest.IpRangeRequest))]
+    [TestCase(typeof(AddressInputRequest))]
+    public async Task AddressInputsPublishThreeExclusiveRepresentationsAndTwoItemRange(Type requestType)
     {
         OpenApiSchema schema = new()
         {
@@ -84,7 +85,7 @@ internal class OpenApiRequiredSchemaTransformerTest
 
         await transformer.TransformAsync(
             schema,
-            CreateContext(typeof(GetFlowComplianceStateRequest.IpRangeRequest)),
+            CreateContext(requestType),
             CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -102,6 +103,7 @@ internal class OpenApiRequiredSchemaTransformerTest
     [TestCase(typeof(GetFlowComplianceStateRequest.IpRangeRequest))]
     [TestCase(typeof(ResolveZonesForObjectsRequest.LeafObjectRequest))]
     [TestCase(typeof(CreateTicketRequest.CreateAddressObjectRequest))]
+    [TestCase(typeof(AddressInputRequest))]
     public void AddressRequestJsonContractsExcludeLegacyBounds(Type requestType)
     {
         string[] propertyNames = JsonSerializerOptions.Default.GetTypeInfo(requestType).Properties

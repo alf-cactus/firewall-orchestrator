@@ -69,7 +69,7 @@ public sealed class PathAnalysisService
     /// The request validator has already rejected missing lists, null elements and every invalid block, so a
     /// failure here is a programming error and not the caller's fault; it surfaces as a server error.
     /// </remarks>
-    private static List<IPAddressRange> ToRanges(List<AddressInputRequest?>? addresses, string path)
+    internal static List<IPAddressRange> ToRanges(List<AddressInputRequest?>? addresses, string path)
     {
         List<IPAddressRange> ranges = [];
         addresses ??= [];
@@ -78,7 +78,7 @@ public sealed class PathAnalysisService
         {
             string entryPath = $"{path}[{index}]";
             AddressInputRequest? address = addresses[index]
-                ?? throw new InvalidOperationException($"IP block at index {index} passed validation but is null.");
+                ?? throw new InvalidOperationException($"'{entryPath}' passed validation but is null.");
             if (!AddressInputNormalizer.TryValidateAndNormalize(
                 address, $"'{entryPath}'", out NormalizedAddressBounds bounds, out string? error))
             {
