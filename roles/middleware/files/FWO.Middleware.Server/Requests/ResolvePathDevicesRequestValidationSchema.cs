@@ -62,7 +62,7 @@ public static class ResolvePathDevicesRequestValidationSchema
     /// <summary>
     /// Maximum list length for sources and destinations.
     /// </summary>
-    public const int kMaximumIpBlocksPerList = 100;
+    public const int kMaximumIpBlocksPerList = 500;
 
     private static readonly List<RequestKeyDefinition> kRootKeys =
     [
