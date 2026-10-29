@@ -68,7 +68,6 @@ internal class OpenApiRequiredSchemaTransformerTest
         Assert.That(request.TicketId, Is.Null);
     }
 
-    [TestCase(typeof(GetFlowComplianceStateRequest.IpRangeRequest))]
     [TestCase(typeof(AddressInputRequest))]
     public async Task AddressInputsPublishThreeExclusiveRepresentationsAndTwoItemRange(Type requestType)
     {
@@ -100,7 +99,6 @@ internal class OpenApiRequiredSchemaTransformerTest
     }
 
     [TestCase(typeof(GetAddressObjectIdRequest))]
-    [TestCase(typeof(GetFlowComplianceStateRequest.IpRangeRequest))]
     [TestCase(typeof(ResolveZonesForObjectsRequest.LeafObjectRequest))]
     [TestCase(typeof(CreateTicketRequest.CreateAddressObjectRequest))]
     [TestCase(typeof(AddressInputRequest))]

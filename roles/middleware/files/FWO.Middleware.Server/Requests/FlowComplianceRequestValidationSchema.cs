@@ -65,7 +65,7 @@ public static class FlowComplianceRequestValidationSchema
 
     private static readonly List<RequestKeyDefinition> kRootKeys =
     [
-        new RequestKeyDefinition(kSourcePath, 
+        new RequestKeyDefinition(kSourcePath,
             $"Source addresses of the flow, 0 to {kMaxRangeEntries} entries, each with exactly one of 'ipHost', 'ipNetwork' or 'ipRange'. Omitted means an empty list."),
         new RequestKeyDefinition(kDestinationPath,
             $"Destination addresses of the flow, 0 to {kMaxRangeEntries} entries, each with exactly one of 'ipHost', 'ipNetwork' or 'ipRange'. Omitted means an empty list."),
