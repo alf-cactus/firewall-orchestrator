@@ -108,22 +108,16 @@ public sealed class ComplianceZoneService(ApiConnection apiConnection, GlobalCon
             throw new InvalidOperationException($"Unsupported object node type '{node.GetType().Name}'.");
         }
 
-        if (string.IsNullOrEmpty(leaf.NormalizedIpStart))
+        if (!AddressInputNormalizer.TryValidateAndNormalize(leaf, $"'{leaf.Name}'", out NormalizedAddressBounds bounds, out string? error))
         {
-            if (!AddressInputNormalizer.TryValidateAndNormalize(leaf, $"'{leaf.Name}'", out NormalizedAddressBounds bounds, out string? errorMessage))
-            {
-                throw new ArgumentException(errorMessage);
-            }
-
-            leaf.NormalizedIpStart = bounds.IpStart;
-            leaf.NormalizedIpEnd = bounds.IpEnd;
+            throw new InvalidOperationException($"'{leaf.Name}' passed validation but could not be converted: {error}");
         }
 
         NetworkObject networkObject = new()
         {
             Name = leaf.Name,
-            IP = leaf.NormalizedIpStart,
-            IpEnd = leaf.NormalizedIpEnd,
+            IP = bounds.IpStart,
+            IpEnd = bounds.IpEnd,
             Type = new NetworkObjectType
             {
                 Name = NormalizeObjectType(leaf.Type)

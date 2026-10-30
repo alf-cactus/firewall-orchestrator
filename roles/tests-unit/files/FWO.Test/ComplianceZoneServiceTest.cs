@@ -198,6 +198,70 @@ internal class ComplianceZoneServiceTest
         Assert.That(exception!.Message, Does.Contain("2001:db8::1-2001:db8::1"));
     }
 
+    /// <summary>
+    /// Verifies the service normalizes the address of a leaf itself, including clearing host bits. IPv6 is used
+    /// because only an unassignable IPv6 range is reported with the bounds the service derived.
+    /// </summary>
+    [TestCase("2001:db8::10", null, "2001:db8::10-2001:db8::10")]
+    [TestCase(null, "2001:db8::/126", "2001:db8::-2001:db8::3")]
+    [TestCase(null, "2001:db8::5/126", "2001:db8::4-2001:db8::7")]
+    public void ResolveZonesForObjectsAsync_NormalizesLeafAddress(string? ipHost, string? ipNetwork, string expectedRange)
+    {
+        ComplianceZoneService service = CreateServiceWithSingleIpv4Zone();
+        ResolveZonesForObjectsRequest request = new()
+        {
+            Objects = [new ResolveZonesForObjectsRequest.LeafObjectRequest
+            {
+                Name = "Leaf",
+                Type = "network",
+                IpHost = ipHost ?? string.Empty,
+                IpNetwork = ipNetwork ?? string.Empty
+            }]
+        };
+
+        UnassignableIpRangesException? exception = Assert.ThrowsAsync<UnassignableIpRangesException>(
+            async () => await service.ResolveZonesForObjectsAsync(request));
+
+        Assert.That(exception!.Message, Does.Contain(expectedRange));
+    }
+
+    /// <summary>
+    /// Verifies an invalid address that bypassed the validator surfaces as a programming error naming the leaf.
+    /// </summary>
+    [Test]
+    public void ResolveZonesForObjectsAsync_InvalidLeafAddress_ThrowsInvalidOperation()
+    {
+        ComplianceZoneService service = CreateServiceWithSingleIpv4Zone();
+        ResolveZonesForObjectsRequest request = new()
+        {
+            Objects = [new ResolveZonesForObjectsRequest.LeafObjectRequest
+            {
+                Name = "Broken Leaf",
+                Type = "host",
+                IpHost = "banana"
+            }]
+        };
+
+        InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await service.ResolveZonesForObjectsAsync(request));
+
+        Assert.That(exception!.Message, Does.Contain("'Broken Leaf' passed validation but could not be converted"));
+    }
+
+    private static ComplianceZoneService CreateServiceWithSingleIpv4Zone()
+    {
+        ComplianceZoneServiceApiConn apiConnection = new(
+            [new ConfigItem { Key = "designatedZoneMatrix", Value = "12", User = 0 }],
+            [new ComplianceCriterion { Id = 12, Name = "Designated Matrix" }],
+            [new ComplianceNetworkZone
+            {
+                Id = 10,
+                Name = "IPv4 Zone",
+                IPRanges = [new NetTools.IPAddressRange(IPAddress.Parse("192.0.2.1"), IPAddress.Parse("192.0.2.1"))]
+            }]);
+        return new ComplianceZoneService(apiConnection, new SimulatedGlobalConfig { DesignatedZoneMatrixId = 12 });
+    }
+
     [Test]
     public async Task ResolveZonesForObjectsAsync_ResolvesRangeLeaves()
     {
