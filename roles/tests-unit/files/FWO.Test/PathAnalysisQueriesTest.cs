@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using FWO.Api.Client;
 using FWO.Api.Client.Queries;
 using FWO.Data;
-using FWO.Services;
+using FWO.Services.PathAnalysis;
 using NUnit.Framework;
 
 namespace FWO.Test;
