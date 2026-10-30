@@ -250,7 +250,7 @@ namespace FWO.Test
 
             GetPrivateMethod(typeof(DisplayPathAnalysis), "Close").Invoke(component, []);
             Assert.That(GetMember<bool>(component, nameof(DisplayPathAnalysis.Display)), Is.False);
-            Assert.That(apiConnection.Queries, Does.Contain(NetworkAnalysisQueries.pathAnalysis));
+            Assert.That(apiConnection.Queries, Does.Contain(PathAnalysisQueries.pathAnalysis));
         }
 
         [Test]
@@ -713,7 +713,7 @@ namespace FWO.Test
             public override Task<QueryResponseType> SendQueryAsync<QueryResponseType>(string query, object? variables = null, string? operationName = null, QueryChunkingOptions? chunkingOptions = null)
             {
                 Queries.Add(query);
-                if (query == NetworkAnalysisQueries.pathAnalysis)
+                if (query == PathAnalysisQueries.pathAnalysis)
                 {
                     return Task.FromResult((QueryResponseType)(object)PathDevices);
                 }

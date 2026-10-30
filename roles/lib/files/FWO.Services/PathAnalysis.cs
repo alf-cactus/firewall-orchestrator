@@ -102,7 +102,7 @@ namespace FWO.Services
                 try
                 {
                     var Variables = new { src = routingSource.Begin.ToString(), dst = routingDestination.Begin.ToString() };
-                    DevList = await apiConnection.SendQueryAsync<List<Device>>(NetworkAnalysisQueries.pathAnalysis, Variables);
+                    DevList = await apiConnection.SendQueryAsync<List<Device>>(PathAnalysisQueries.pathAnalysis, Variables);
                 }
                 catch (Exception exeption)
                 {
